@@ -1,21 +1,109 @@
-.freq-section { margin-bottom: 3rem; }
-.freq-header { display: flex; align-items: center; gap: 1rem; }
-.freq-icon { font-size: 2.5rem; }
+/* FrequencyAnalysis page styles */
 
-.placeholder-viz { text-align: center; padding: 3rem; }
-.viz-placeholder { display: flex; flex-direction: column; align-items: center; gap: 1rem; }
-.viz-icon { font-size: 3rem; opacity: 0.4; }
-.viz-placeholder p { color: var(--text-muted); }
+/* Info chips row */
+.info-row {
+  display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 2rem;
+}
+.info-chip {
+  display: flex; align-items: center; gap: 0.75rem; flex: 1; min-width: 200px; padding: 1rem 1.25rem;
+}
+.chip-icon  { font-size: 1.5rem; }
+.chip-label { font-size: 0.875rem; font-weight: 600; color: var(--text-primary); }
+.chip-desc  { font-size: 0.775rem; color: var(--text-muted); margin-top: 0.1rem; }
 
+/* Two-column layout */
+.fft-layout {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 1.75rem;
+  align-items: start;
+}
+@media (max-width: 900px) { .fft-layout { grid-template-columns: 1fr; } }
+
+/* Upload panel (reuse ImageDetection styles where possible) */
+.drop-zone {
+  position: relative; min-height: 240px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  cursor: pointer; border: 2px dashed var(--border); transition: border-color 0.2s, background 0.2s;
+}
+.drop-zone.dragging { border-color: var(--accent); background: var(--accent-glow); }
+.drop-zone.has-preview { border-style: solid; }
+.file-input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.drop-placeholder { text-align: center; display: flex; flex-direction: column; gap: 0.5rem; align-items: center; pointer-events: none; }
+.drop-icon { font-size: 2.5rem; }
+.preview-wrapper { width: 100%; display: flex; flex-direction: column; gap: 0.75rem; pointer-events: none; }
+.preview-img { width: 100%; max-height: 280px; object-fit: contain; border-radius: var(--radius-sm); }
+.preview-meta { display: flex; justify-content: space-between; font-size: 0.8rem; }
+.upload-actions { display: flex; gap: 0.75rem; margin-top: 1rem; flex-wrap: wrap; }
+
+/* Explainer card */
+.explainer-card { padding: 1.25rem; }
+.explainer-card h4 { margin-bottom: 0.75rem; }
+.explainer-list { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
+.explainer-list li { font-size: 0.875rem; color: var(--text-secondary); display: flex; gap: 0.5rem; align-items: baseline; }
+.explainer-list strong { color: var(--text-primary); }
+
+/* Results */
+.fft-results-panel {}
+.result-placeholder {
+  text-align: center; min-height: 240px; display: flex;
+  flex-direction: column; align-items: center; justify-content: center; gap: 0.75rem;
+}
+.placeholder-icon { font-size: 3rem; }
+
+.fft-results { display: flex; flex-direction: column; gap: 1rem; }
+
+/* Spectra */
+.spectra-row { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+.spectrum-box { flex: 1; min-width: 120px; display: flex; flex-direction: column; gap: 0.4rem; }
+.spectrum-label { font-size: 0.75rem; color: var(--text-muted); font-weight: 500; }
+.spectrum-img {
+  width: 100%; aspect-ratio: 1;
+  object-fit: contain; border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border);
+  background: #000;
+}
+
+/* Radial chart */
+.radial-chart { display: flex; flex-direction: column; gap: 0.5rem; }
+.chart-title { font-size: 0.8rem; color: var(--text-muted); font-weight: 500; }
+.chart-svg { display: block; border-radius: var(--radius-sm); background: var(--bg-secondary); border: 1px solid var(--border); }
+.chart-axis { display: flex; justify-content: space-between; font-size: 0.75rem; padding: 0 2px; }
+
+/* Feature bars */
+.feat-group-label { font-size: 0.75rem; font-weight: 600; color: var(--text-muted); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 0.5rem; }
+.feat-row { margin-bottom: 0.75rem; cursor: default; }
+.feat-label { display: flex; justify-content: space-between; font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 0.3rem; }
+.feat-val { font-weight: 600; color: var(--text-primary); font-family: monospace; font-size: 0.8rem; }
+
+/* Energy distribution */
+.energy-dist { margin-top: 1.25rem; }
+.energy-bar-wrap { display: flex; height: 14px; border-radius: 999px; overflow: hidden; }
+.energy-seg { height: 100%; transition: width 0.6s ease; }
+.energy-labels { display: flex; justify-content: space-between; font-size: 0.78rem; font-weight: 600; margin-top: 0.4rem; }
+
+/* Meta card */
+.meta-card { display: flex; flex-direction: column; gap: 0.5rem; }
+.meta-row { display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--text-secondary); border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; }
+.meta-row:last-child { border-bottom: none; padding-bottom: 0; }
+.meta-row span:last-child { color: var(--text-primary); font-weight: 500; word-break: break-all; }
+
+/* Placeholder future */
+.placeholder-future p { font-size: 0.875rem; color: var(--text-muted); margin-top: 0.5rem; }
+.placeholder-future h4 { display: flex; align-items: center; gap: 0.75rem; }
+
+/* Fusion section */
+.freq-section { margin-bottom: 2.5rem; margin-top: 2rem; }
 .fusion-card {}
 .fusion-diagram { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
 .fusion-box {
   background: var(--bg-secondary); border: 1px solid var(--border);
   border-radius: var(--radius-sm); padding: 0.75rem 1.25rem;
-  text-align: center; font-weight: 600; font-size: 0.95rem;
-  line-height: 1.4;
+  text-align: center; font-weight: 600; font-size: 0.95rem; line-height: 1.4;
 }
 .fusion-box small { color: var(--text-muted); font-weight: 400; font-size: 0.75rem; }
+.fusion-active { border-color: var(--accent); box-shadow: 0 0 12px var(--accent-glow); }
+.fusion-active small { color: var(--success); font-weight: 600; }
 .fusion-output { border-color: var(--accent); color: var(--accent); }
 .fusion-plus  { font-size: 1.5rem; color: var(--text-muted); }
 .fusion-arrow { font-size: 1.5rem; color: var(--accent); }
