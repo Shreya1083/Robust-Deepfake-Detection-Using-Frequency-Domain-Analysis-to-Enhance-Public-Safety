@@ -1,0 +1,63 @@
+# ============================================================
+# Robust Deepfake Detection - .gitignore
+# ============================================================
+
+# ---------- Virtual Environment ----------
+venv/
+env/
+.venv/
+.env/
+
+# ---------- Python Cache ----------
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# ---------- Distribution / Packaging ----------
+build/
+dist/
+*.egg-info/
+*.egg
+
+# ---------- Large Datasets ----------
+data/raw/*
+data/processed/*
+data/splits/*
+!data/README.md
+
+# ---------- Model Checkpoints ----------
+models/checkpoints/*
+*.pth
+*.pt
+*.onnx
+*.h5
+
+# ---------- Temporary Files ----------
+*.tmp
+*.temp
+*.log
+*.bak
+*.swp
+*~
+
+# ---------- IDE / Editor ----------
+.vscode/
+.idea/
+*.code-workspace
+
+# ---------- Jupyter Notebooks Checkpoints ----------
+.ipynb_checkpoints/
+
+# ---------- OS Files ----------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------- Streamlit ----------
+.streamlit/
+
+# ---------- Misc ----------
+*.zip
+*.tar.gz
+*.rar
