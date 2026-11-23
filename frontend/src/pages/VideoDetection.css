@@ -1,0 +1,10 @@
+.video-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 1.75rem; align-items: start; }
+@media (max-width: 768px) { .video-layout { grid-template-columns: 1fr; } }
+
+.upload-card h3 { margin-bottom: 0; }
+.video-file-input { display: block; width: 100%; padding: 0.75rem; background: var(--bg-secondary); border: 1px dashed var(--border); border-radius: var(--radius-sm); color: var(--text-secondary); cursor: pointer; }
+.file-info { display: flex; justify-content: space-between; margin-top: 0.75rem; font-size: 0.875rem; }
+.upload-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+
+.phase5-list { list-style: none; display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem; }
+.phase5-list li { color: var(--text-secondary); font-size: 0.9rem; display: flex; gap: 0.5rem; }

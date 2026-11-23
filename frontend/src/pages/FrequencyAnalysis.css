@@ -1,0 +1,21 @@
+.freq-section { margin-bottom: 3rem; }
+.freq-header { display: flex; align-items: center; gap: 1rem; }
+.freq-icon { font-size: 2.5rem; }
+
+.placeholder-viz { text-align: center; padding: 3rem; }
+.viz-placeholder { display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+.viz-icon { font-size: 3rem; opacity: 0.4; }
+.viz-placeholder p { color: var(--text-muted); }
+
+.fusion-card {}
+.fusion-diagram { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.fusion-box {
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 0.75rem 1.25rem;
+  text-align: center; font-weight: 600; font-size: 0.95rem;
+  line-height: 1.4;
+}
+.fusion-box small { color: var(--text-muted); font-weight: 400; font-size: 0.75rem; }
+.fusion-output { border-color: var(--accent); color: var(--accent); }
+.fusion-plus  { font-size: 1.5rem; color: var(--text-muted); }
+.fusion-arrow { font-size: 1.5rem; color: var(--accent); }
