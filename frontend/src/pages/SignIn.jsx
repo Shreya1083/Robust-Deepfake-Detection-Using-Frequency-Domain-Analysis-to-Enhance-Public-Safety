@@ -34,14 +34,24 @@ export default function SignIn() {
       await login({ identifier: identifier.trim(), password })
       navigate(from, { replace: true })
     } catch (err) {
-      const detail = err.response?.data?.detail
-      if (typeof detail === 'string') {
-        setError(detail)
-      } else if (Array.isArray(detail)) {
-        setError(detail.map(d => d.msg).join(', '))
+      const respData = err.response?.data
+      let errorMsg = ''
+      if (typeof respData?.detail === 'string') {
+        errorMsg = respData.detail
+      } else if (Array.isArray(respData?.detail)) {
+        errorMsg = respData.detail.map(d => d.msg || d.message).join(', ')
+      } else if (typeof respData?.message === 'string') {
+        errorMsg = respData.message
+      } else if (err.response?.status === 503) {
+        errorMsg = respData?.detail || 'Database service is currently unavailable. Ensure MongoDB is running.'
+      } else if (err.message === 'Network Error' || !err.response) {
+        errorMsg = 'Network Error: Unable to reach backend server at http://localhost:8000. Please ensure the backend is running.'
+      } else if (err.message) {
+        errorMsg = err.message
       } else {
-        setError('Failed to sign in. Please check your credentials or database status.')
+        errorMsg = 'Failed to sign in. Please check your credentials or database status.'
       }
+      setError(errorMsg)
     } finally {
       setLoading(false)
     }
