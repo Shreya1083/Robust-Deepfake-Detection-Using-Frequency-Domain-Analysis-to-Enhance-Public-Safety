@@ -158,7 +158,7 @@ def plot_distribution(stats: Dict, output_image: Path) -> None:
 
     axes[1].set_title("Overall Class Distribution (Face Crops)", color="#E8EDF5", fontsize=12, pad=10)
 
-    plt.tight_layout()
+    plt.subplots_adjust(top=0.85, bottom=0.18, wspace=0.3)
     output_image.parent.mkdir(parents=True, exist_ok=True)
     plt.savefig(str(output_image), dpi=200, bbox_inches="tight", facecolor=fig.get_facecolor())
     plt.close()
