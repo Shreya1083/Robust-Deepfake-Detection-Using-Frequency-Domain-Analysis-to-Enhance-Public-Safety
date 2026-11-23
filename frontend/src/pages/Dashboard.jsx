@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { checkStatus, checkHealth } from '../services/api'
+import { checkStatus, checkHealth, apiAuthStatus } from '../services/api'
+import { useAuth } from '../context/AuthContext'
 import './Dashboard.css'
 
 function StatCard({ icon, label, value, sub, color }) {
@@ -16,20 +17,29 @@ function StatCard({ icon, label, value, sub, color }) {
 }
 
 export default function Dashboard() {
+  const { user } = useAuth()
   const [status, setStatus] = useState(null)
   const [health, setHealth] = useState(null)
+  const [dbStatus, setDbStatus] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [h, s] = await Promise.all([checkHealth(), checkStatus()])
-        setHealth(h.data)
-        setStatus(s.data)
+        const [h, s, authStat] = await Promise.allSettled([
+          checkHealth(),
+          checkStatus(),
+          apiAuthStatus(),
+        ])
+        if (h.status === 'fulfilled') setHealth(h.value.data)
+        if (s.status === 'fulfilled') setStatus(s.value.data)
+        if (authStat.status === 'fulfilled') setDbStatus(authStat.value.data)
       } catch {
         setHealth({ status: 'error' })
         setStatus(null)
-      } finally { setLoading(false) }
+      } finally {
+        setLoading(false)
+      }
     }
     load()
   }, [])
@@ -38,42 +48,81 @@ export default function Dashboard() {
 
   return (
     <div className="page-container">
+      {/* User Welcome Banner */}
+      {user && (
+        <div className="card user-welcome-card" style={{ marginBottom: '2rem', borderColor: 'var(--accent)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+            <div>
+              <div className="badge badge-info" style={{ marginBottom: '0.4rem' }}>Authenticated Session</div>
+              <h2>Welcome, <span className="text-accent">{user.full_name || user.username}</span></h2>
+              <p className="text-secondary" style={{ marginTop: '0.2rem' }}>
+                Signed in as <strong>@{user.username}</strong> ({user.email})
+              </p>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <span className="badge badge-real" style={{ fontSize: '0.85rem' }}>Active User</span>
+              {user.created_at && (
+                <div className="text-muted" style={{ fontSize: '0.75rem', marginTop: '0.35rem' }}>
+                  Member since: {new Date(user.created_at).toLocaleDateString()}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="section-header">
         <div className="label">System Overview</div>
         <h1>Dashboard</h1>
-        <p style={{ marginTop: '0.5rem' }}>Live backend status, model info and project progress.</p>
+        <p style={{ marginTop: '0.5rem' }}>Live backend status, database connection, model info, and project progress.</p>
       </div>
 
       {loading ? (
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', padding: '2rem 0' }}>
           <div className="spinner" />
-          <span className="text-muted">Connecting to backend…</span>
+          <span className="text-muted">Connecting to backend & database…</span>
         </div>
       ) : (
         <>
-          {/* Backend status */}
+          {/* Backend & Database status */}
           <section className="dash-section">
-            <h3>Backend Health</h3>
+            <h3>Infrastructure Health</h3>
             <div className="grid-3" style={{ marginTop: '1rem' }}>
               <StatCard
                 icon={health?.status === 'ok' ? '✅' : '❌'}
                 label="API Server"
                 value={health?.status === 'ok' ? 'Online' : 'Offline'}
                 color={health?.status === 'ok' ? 'var(--success)' : 'var(--danger)'}
+                sub="FastAPI :8000"
+              />
+              <StatCard
+                icon={dbStatus?.database_connected ? '🍃' : '⚠️'}
+                label="MongoDB Database"
+                value={dbStatus?.database_connected ? 'Connected' : 'Offline / Setup Needed'}
+                color={dbStatus?.database_connected ? 'var(--success)' : 'var(--warning)'}
+                sub={dbStatus?.database_name || 'deepfake_detection_db'}
               />
               <StatCard
                 icon={status?.model_ready ? '🧠' : '⏳'}
-                label="CNN Model"
+                label="CNN Spatial Model"
                 value={status?.model_ready ? 'Ready' : 'Awaiting Training'}
                 color={status?.model_ready ? 'var(--success)' : 'var(--warning)'}
-              />
-              <StatCard
-                icon="💻"
-                label="Device"
-                value={status?.device || '—'}
-                sub="CPU / GPU"
+                sub="ResNet18"
               />
             </div>
+
+            {/* Database guidance notice if MongoDB is offline */}
+            {dbStatus && !dbStatus.database_connected && (
+              <div className="alert alert-warning" style={{ marginTop: '1.25rem' }}>
+                <div>
+                  <strong>MongoDB Service Configuration Notice:</strong>
+                  <p style={{ marginTop: '0.25rem', fontSize: '0.875rem' }}>
+                    The backend is configured for MongoDB at <code>{dbStatus.database_url}</code>.
+                    To store and authenticate live users in MongoDB, start your local MongoDB service (e.g. <code>net start MongoDB</code> or <code>mongod</code>), or set a remote connection string like MongoDB Atlas via <code>MONGODB_URL</code> in a <code>.env</code> file.
+                  </p>
+                </div>
+              </div>
+            )}
           </section>
 
           {/* Model metadata */}
@@ -113,7 +162,8 @@ export default function Dashboard() {
                 { phase: 'Phase 2', name: 'Dataset Preparation', done: true },
                 { phase: 'Phase 3', name: 'CNN Spatial Detection', done: true },
                 { phase: 'Phase 3A', name: 'React + FastAPI Application', done: true },
-                { phase: 'Phase 4', name: 'FFT Frequency Analysis', done: false },
+                { phase: 'Phase 3B', name: 'User Authentication (MongoDB + JWT)', done: true },
+                { phase: 'Phase 4', name: 'FFT Frequency Analysis', done: true },
                 { phase: 'Phase 5', name: 'DWT Wavelet Analysis', done: false },
                 { phase: 'Phase 6', name: 'Feature Fusion & Final Model', done: false },
               ].map(p => (

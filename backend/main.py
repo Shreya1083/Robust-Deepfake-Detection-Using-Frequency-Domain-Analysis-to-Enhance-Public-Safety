@@ -20,7 +20,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.routes.image_routes import router as image_router
 from backend.routes.video_routes import router as video_router
 from backend.routes.frequency_routes import router as frequency_router
+from backend.routes.auth_routes import router as auth_router
 from backend.services.model_service import model_service
+from backend.database import db_manager
 
 logging.basicConfig(
     level=logging.INFO,
@@ -55,6 +57,7 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 # Routers
 # ---------------------------------------------------------------------------
+app.include_router(auth_router,      prefix="/api")
 app.include_router(image_router,     prefix="/api")
 app.include_router(video_router,     prefix="/api")
 app.include_router(frequency_router, prefix="/api")
@@ -87,3 +90,16 @@ async def model_status():
 @app.on_event("startup")
 async def startup_event():
     logger.info("FastAPI startup complete. Model ready: %s", model_service.is_ready)
+    # Test MongoDB connectivity non-blockingly
+    connected, err = await db_manager.check_connection()
+    if connected:
+        logger.info("MongoDB connected successfully. Ensuring indexes.")
+        await db_manager.ensure_indexes()
+    else:
+        logger.warning("MongoDB not connected on startup: %s", err)
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    db_manager.close()
+    logger.info("MongoDB connection closed.")

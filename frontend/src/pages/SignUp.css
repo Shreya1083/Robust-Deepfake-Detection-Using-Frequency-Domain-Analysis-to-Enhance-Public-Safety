@@ -1,0 +1,16 @@
+/* Sign Up Page Styles */
+
+.signup-card {
+  max-width: 480px;
+}
+
+.input-error {
+  border-color: var(--danger) !important;
+}
+
+.field-error-text {
+  font-size: 0.775rem;
+  color: var(--danger);
+  margin-top: 0.15rem;
+  font-weight: 500;
+}
