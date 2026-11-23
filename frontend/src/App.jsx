@@ -9,6 +9,8 @@ import ImageDetection from './pages/ImageDetection'
 import VideoDetection from './pages/VideoDetection'
 import FrequencyAnalysis from './pages/FrequencyAnalysis'
 import Dashboard from './pages/Dashboard'
+import History from './pages/History'
+import Profile from './pages/Profile'
 import SignIn from './pages/SignIn'
 import SignUp from './pages/SignUp'
 
@@ -20,19 +22,39 @@ export default function App() {
           <Navbar />
           <main className="main-content">
             <Routes>
+              {/* Public Routes */}
               <Route path="/" element={<Home />} />
               <Route path="/about" element={<About />} />
+              <Route path="/signin" element={<SignIn />} />
+              <Route path="/signup" element={<SignUp />} />
+
+              {/* Forensic Tool Pages */}
               <Route path="/image-detection" element={<ImageDetection />} />
               <Route path="/video-detection" element={<VideoDetection />} />
               <Route path="/frequency-analysis" element={<FrequencyAnalysis />} />
-              <Route path="/signin" element={<SignIn />} />
-              <Route path="/signup" element={<SignUp />} />
-              {/* Protected Route: Dashboard requires authentication */}
+
+              {/* Protected Routes (require authentication) */}
               <Route
                 path="/dashboard"
                 element={
                   <ProtectedRoute>
                     <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/history"
+                element={
+                  <ProtectedRoute>
+                    <History />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <Profile />
                   </ProtectedRoute>
                 }
               />

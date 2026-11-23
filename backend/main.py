@@ -21,6 +21,7 @@ from backend.routes.image_routes import router as image_router
 from backend.routes.video_routes import router as video_router
 from backend.routes.frequency_routes import router as frequency_router
 from backend.routes.auth_routes import router as auth_router
+from backend.routes.history_routes import router as history_router
 from backend.services.model_service import model_service
 from backend.database import db_manager
 
@@ -34,8 +35,8 @@ logger = logging.getLogger(__name__)
 # App Initialization
 # ---------------------------------------------------------------------------
 app = FastAPI(
-    title="Robust Deepfake Detection API",
-    description="CNN-based spatial deepfake detection using ResNet18.",
+    title="VeriFrame API",
+    description="VeriFrame — AI-Powered Deepfake Detection System using CNN spatial and frequency-domain analysis.",
     version="1.0.0",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
@@ -61,6 +62,7 @@ app.include_router(auth_router,      prefix="/api")
 app.include_router(image_router,     prefix="/api")
 app.include_router(video_router,     prefix="/api")
 app.include_router(frequency_router, prefix="/api")
+app.include_router(history_router,   prefix="/api")
 
 
 # ---------------------------------------------------------------------------
@@ -69,7 +71,7 @@ app.include_router(frequency_router, prefix="/api")
 @app.get("/api/health")
 async def health_check():
     """Basic liveness probe."""
-    return {"status": "ok", "service": "deepfake-detection-api"}
+    return {"status": "ok", "service": "veriframe-api"}
 
 
 @app.get("/api/status")

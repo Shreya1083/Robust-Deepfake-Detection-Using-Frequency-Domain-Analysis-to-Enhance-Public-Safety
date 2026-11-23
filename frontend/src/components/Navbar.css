@@ -1,60 +1,120 @@
+/* ============================================================
+   Navbar Styles — VeriFrame Light Professional Enterprise
+   ============================================================ */
+
 .navbar {
-  background: rgba(10,15,30,0.95);
+  background: #ffffff;
   border-bottom: 1px solid var(--border);
-  backdrop-filter: blur(12px);
   position: sticky;
   top: 0;
   z-index: 100;
+  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.04);
 }
+
 .navbar-inner {
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 1.5rem;
-  height: 64px;
+  height: 68px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 1.5rem;
 }
+
+/* Brand */
 .navbar-brand {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.65rem;
   text-decoration: none;
-  font-size: 1.15rem;
-  font-weight: 800;
-  color: var(--text-primary);
   flex-shrink: 0;
 }
-.brand-icon { font-size: 1.3rem; }
-.brand-accent { color: var(--accent); }
+
+.brand-logo-container {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  background: #f0fdfa;
+  border: 1px solid #ccfbf1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+}
+
+.brand-text-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-name {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--primary);
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+}
+
+.brand-accent {
+  color: var(--accent);
+}
+
+.brand-tagline {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Navigation Links */
+.navbar-collapse {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 1;
+  gap: 1.5rem;
+}
 
 .navbar-links {
   display: flex;
+  align-items: center;
   list-style: none;
-  gap: 0.25rem;
-  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
 }
+
 .nav-link {
   text-decoration: none;
   color: var(--text-secondary);
-  font-size: 0.875rem;
+  font-size: 0.9rem;
   font-weight: 500;
-  padding: 0.4rem 0.8rem;
+  padding: 0.45rem 0.85rem;
   border-radius: var(--radius-sm);
-  transition: color 0.2s, background 0.2s;
+  transition: all 0.15s ease;
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.3rem;
 }
-.nav-link:hover { color: var(--text-primary); background: var(--bg-card); }
-.nav-link.active { color: var(--accent); background: var(--accent-glow); }
-.nav-lock { font-size: 0.75rem; opacity: 0.8; }
 
+.nav-link:hover {
+  color: var(--primary);
+  background: var(--bg-subtle);
+}
+
+.nav-link.active {
+  color: var(--primary);
+  background: var(--bg-subtle);
+  font-weight: 600;
+}
+
+/* Auth Section */
 .navbar-auth {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.85rem;
   flex-shrink: 0;
 }
 
@@ -67,43 +127,63 @@
 .nav-auth-link {
   text-decoration: none;
   color: var(--text-primary);
-  font-size: 0.875rem;
+  font-size: 0.9rem;
   font-weight: 600;
-  padding: 0.4rem 0.75rem;
+  padding: 0.5rem 0.9rem;
   border-radius: var(--radius-sm);
-  transition: color 0.2s, background 0.2s;
+  transition: all 0.15s ease;
 }
+
 .nav-auth-link:hover {
-  color: var(--accent);
-  background: var(--bg-card);
+  background: var(--bg-subtle);
+  color: var(--primary);
 }
 
 .btn-signup-nav {
-  padding: 0.45rem 1rem !important;
-  font-size: 0.875rem !important;
+  padding: 0.5rem 1.15rem;
+  font-size: 0.875rem;
 }
 
+/* User Badge */
 .user-profile-badge {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 0.3rem 0.75rem;
 }
 
 .user-greeting {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.5rem;
+  text-decoration: none;
+  padding: 0.3rem 0.65rem;
+  border-radius: var(--radius-pill);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  transition: border-color 0.15s ease;
+}
+
+.user-greeting:hover {
+  border-color: #cbd5e1;
+}
+
+.user-avatar-circle {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .user-name {
-  color: var(--accent);
+  font-size: 0.85rem;
   font-weight: 600;
+  color: var(--text-primary);
   max-width: 140px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -112,18 +192,90 @@
 
 .btn-logout {
   background: transparent;
+  color: var(--text-secondary);
   border: 1px solid var(--border);
-  color: var(--text-muted);
-  font-size: 0.775rem;
+  font-size: 0.8rem;
   font-weight: 600;
-  padding: 0.25rem 0.55rem;
-  border-radius: 4px;
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.15s ease;
 }
 
 .btn-logout:hover {
-  background: rgba(239, 68, 68, 0.15);
+  background: var(--danger-bg);
+  border-color: var(--danger-border);
   color: var(--danger);
-  border-color: rgba(239, 68, 68, 0.3);
+}
+
+/* Mobile Toggle */
+.mobile-toggle {
+  display: none;
+  flex-direction: column;
+  justify-content: space-around;
+  width: 32px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.hamburger-bar {
+  width: 100%;
+  height: 2px;
+  background: var(--primary);
+  border-radius: 2px;
+  transition: all 0.2s ease;
+}
+
+@media (max-width: 900px) {
+  .mobile-toggle {
+    display: flex;
+  }
+
+  .navbar-collapse {
+    display: none;
+    position: absolute;
+    top: 68px;
+    left: 0;
+    right: 0;
+    background: #ffffff;
+    border-bottom: 1px solid var(--border);
+    box-shadow: var(--shadow-md);
+    flex-direction: column;
+    align-items: stretch;
+    padding: 1.25rem 1.5rem;
+    gap: 1.25rem;
+  }
+
+  .navbar-collapse.open {
+    display: flex;
+  }
+
+  .navbar-links {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.25rem;
+  }
+
+  .nav-link {
+    padding: 0.65rem 0.75rem;
+  }
+
+  .navbar-auth {
+    border-top: 1px solid var(--border);
+    padding-top: 1rem;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .auth-buttons {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .user-profile-badge {
+    justify-content: space-between;
+  }
 }

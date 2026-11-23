@@ -61,9 +61,12 @@ export default function SignIn() {
     <div className="auth-page">
       <div className="auth-card card">
         <div className="auth-header">
-          <div className="auth-logo">🛡️</div>
-          <h2>Welcome Back</h2>
-          <p className="text-muted">Sign in to access your detection dashboard & history</p>
+          <div className="auth-brand-badge">
+            <span className="auth-logo">🛡️</span>
+            <span className="auth-brand-title">VeriFrame</span>
+          </div>
+          <h2>Sign In to Your Account</h2>
+          <p className="text-muted">Access your deepfake detection dashboard &amp; forensic history</p>
         </div>
 
         {successMsg && (

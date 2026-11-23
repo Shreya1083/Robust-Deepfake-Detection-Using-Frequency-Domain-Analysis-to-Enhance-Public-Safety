@@ -101,7 +101,7 @@ class DatabaseManager:
             return False, str(exc)
 
     async def ensure_indexes(self):
-        """Create unique indexes on users collection for email and username."""
+        """Create indexes on users and detection_history collections."""
         if getattr(self, "_is_mock", False):
             return
         try:
@@ -109,7 +109,10 @@ class DatabaseManager:
             users = db["users"]
             await asyncio.wait_for(users.create_index("email", unique=True), timeout=1.0)
             await asyncio.wait_for(users.create_index("username", unique=True), timeout=1.0)
-            logger.info("MongoDB user indexes ensured.")
+            
+            history = db["detection_history"]
+            await asyncio.wait_for(history.create_index([("user_id", 1), ("created_at", -1)]), timeout=1.0)
+            logger.info("MongoDB user and detection_history indexes ensured.")
         except Exception as exc:
             logger.warning("Could not ensure MongoDB indexes: %s", exc)
 

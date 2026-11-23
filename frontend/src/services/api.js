@@ -20,3 +20,9 @@ export const apiLogin      = (credentials) => api.post('/auth/login', credential
 export const apiLogout     = ()            => api.post('/auth/logout')
 export const apiGetMe      = ()            => api.get('/auth/me')
 export const apiAuthStatus = ()            => api.get('/auth/status')
+
+// History APIs
+export const apiGetHistory       = (params) => api.get('/history', { params })
+export const apiGetHistoryStats  = ()       => api.get('/history/stats')
+export const apiGetHistoryItem   = (id)     => api.get(`/history/${id}`)
+export const apiDeleteHistoryItem= (id)     => api.delete(`/history/${id}`)

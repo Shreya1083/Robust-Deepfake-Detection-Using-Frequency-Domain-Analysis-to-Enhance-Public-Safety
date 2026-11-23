@@ -104,9 +104,12 @@ export default function SignUp() {
     <div className="auth-page">
       <div className="auth-card signup-card card">
         <div className="auth-header">
-          <div className="auth-logo">🛡️</div>
-          <h2>Create Account</h2>
-          <p className="text-muted">Register to use the robust deepfake detection system</p>
+          <div className="auth-brand-badge">
+            <span className="auth-logo">🛡️</span>
+            <span className="auth-brand-title">VeriFrame</span>
+          </div>
+          <h2>Create VeriFrame Account</h2>
+          <p className="text-muted">AI-Powered Deepfake Detection System</p>
         </div>
 
         {error && (

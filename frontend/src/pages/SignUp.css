@@ -1,4 +1,5 @@
 /* Sign Up Page Styles */
+@import './SignIn.css';
 
 .signup-card {
   max-width: 480px;

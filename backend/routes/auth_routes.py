@@ -104,6 +104,22 @@ async def get_current_user(
     }
 
 
+async def get_current_user_optional(
+    request: Request,
+    access_token: Optional[str] = Cookie(None, alias=COOKIE_NAME),
+    authorization: Optional[str] = Header(None),
+) -> Optional[dict]:
+    """
+    Optional user dependency.
+    Returns user dict if valid session cookie or token is provided, None otherwise.
+    Never throws 401.
+    """
+    try:
+        return await get_current_user(request, access_token, authorization)
+    except HTTPException:
+        return None
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
