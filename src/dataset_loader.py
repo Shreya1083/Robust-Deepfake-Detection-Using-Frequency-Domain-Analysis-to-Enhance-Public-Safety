@@ -232,3 +232,151 @@ class DatasetLoader:
                 summary["overall"]["INVALID"] += 1
 
         return summary
+
+
+# ============================================================
+# PyTorch Dataset for CNN Training and Evaluation
+# ============================================================
+
+import csv
+from PIL import Image
+import torch
+from torch.utils.data import DataLoader, Dataset
+from torchvision import transforms
+from src.config import ROOT_DIR
+
+
+def get_spatial_transforms(
+    is_train: bool = True,
+    input_size: Tuple[int, int] = (224, 224),
+) -> transforms.Compose:
+    """
+    Standard torchvision transformations for ResNet18 spatial model.
+    Applies standard ImageNet normalization:
+        mean = [0.485, 0.456, 0.406]
+        std  = [0.229, 0.224, 0.225]
+    """
+    mean = [0.485, 0.456, 0.406]
+    std = [0.229, 0.224, 0.225]
+
+    if is_train:
+        return transforms.Compose([
+            transforms.Resize(input_size),
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.RandomRotation(degrees=10),
+            transforms.ColorJitter(brightness=0.1, contrast=0.1),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=mean, std=std),
+        ])
+    else:
+        return transforms.Compose([
+            transforms.Resize(input_size),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=mean, std=std),
+        ])
+
+
+class DeepfakeFaceDataset(Dataset):
+    """
+    PyTorch Dataset that loads cropped facial images from prepared CSV split files.
+    Validates file existence and decodability, reporting corrupt items safely.
+    """
+
+    def __init__(
+        self,
+        csv_file: Path,
+        transform: Optional[transforms.Compose] = None,
+        base_dir: Optional[Path] = None,
+    ):
+        self.csv_file = Path(csv_file)
+        self.base_dir = Path(base_dir or ROOT_DIR)
+        self.transform = transform
+        self.samples: List[Tuple[Path, int, str]] = []
+
+        self._load_csv()
+
+    def _load_csv(self) -> None:
+        """Parse split manifest CSV."""
+        if not self.csv_file.exists():
+            logger.warning("Split CSV file does not exist: %s", self.csv_file)
+            return
+
+        with open(self.csv_file, mode="r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                rel_path = row.get("filepath", "")
+                label_val = row.get("label", "")
+                video_id = row.get("video_id", "")
+
+                if not rel_path or label_val == "":
+                    continue
+
+                full_path = self.base_dir / rel_path
+                label = int(label_val)
+                self.samples.append((full_path, label, video_id))
+
+    def __len__(self) -> int:
+        return len(self.samples)
+
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, int]:
+        image_path, label, _ = self.samples[idx]
+
+        try:
+            # Load with PIL (RGB)
+            image = Image.open(image_path).convert("RGB")
+        except Exception as e:
+            logger.warning("Corrupted image at %s: %s. Returning fallback zero tensor.", image_path, e)
+            image = Image.new("RGB", (224, 224), color=(0, 0, 0))
+
+        if self.transform is not None:
+            image_tensor = self.transform(image)
+        else:
+            image_tensor = transforms.ToTensor()(image)
+
+        return image_tensor, label
+
+
+def create_dataloaders(
+    train_csv: Path,
+    val_csv: Path,
+    test_csv: Optional[Path] = None,
+    batch_size: int = 32,
+    num_workers: int = 0,
+    input_size: Tuple[int, int] = (224, 224),
+) -> Tuple[DataLoader, DataLoader, Optional[DataLoader]]:
+    """Factory creating DataLoaders for train, val and test datasets."""
+    train_transform = get_spatial_transforms(is_train=True, input_size=input_size)
+    eval_transform = get_spatial_transforms(is_train=False, input_size=input_size)
+
+    train_dataset = DeepfakeFaceDataset(train_csv, transform=train_transform)
+    val_dataset = DeepfakeFaceDataset(val_csv, transform=eval_transform)
+
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=num_workers,
+        pin_memory=torch.cuda.is_available(),
+    )
+
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=torch.cuda.is_available(),
+    )
+
+    test_loader = None
+    if test_csv is not None and test_csv.exists():
+        test_dataset = DeepfakeFaceDataset(test_csv, transform=eval_transform)
+        test_loader = DataLoader(
+            test_dataset,
+            batch_size=batch_size,
+            shuffle=False,
+            num_workers=num_workers,
+            pin_memory=torch.cuda.is_available(),
+        )
+
+    return train_loader, val_loader, test_loader
+
