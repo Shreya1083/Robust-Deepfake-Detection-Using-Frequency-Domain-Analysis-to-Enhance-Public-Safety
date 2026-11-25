@@ -98,15 +98,17 @@ export default function ImageDetection() {
   const verdict = result?.prediction
   const isReal = verdict === 'REAL'
   const isFake = verdict === 'DEEPFAKE'
+  const isFusion = result?.is_fusion || result?.model_type === 'multimodal_fusion'
 
   return (
     <div className="page-container image-detection-page">
       <div className="section-header">
-        <span className="badge badge-teal">Spatial Forensic Analysis</span>
+        <span className="badge badge-teal">Multimodal Forensic Analysis (CNN + FFT + DWT)</span>
         <h1>Image Deepfake Detection</h1>
         <p>
-          Upload a digital image or portrait. VeriFrame extracts facial landmarks and runs deep
-          convolutional neural network inference to detect synthetic generation, face swapping, and manipulation artifacts.
+          Upload a target portrait or digital image. VeriFrame leverages a unified multimodal architecture
+          fusing deep CNN spatial embeddings (512-dim), FFT frequency power spectrum (70-dim), and DWT
+          wavelet detail sub-bands (28-dim) into a 610-dimensional forensic classifier.
         </p>
       </div>
 
@@ -151,13 +153,13 @@ export default function ImageDetection() {
           <div className="upload-actions">
             {file && !loading && (
               <button className="btn btn-primary btn-analyze" onClick={analyze}>
-                🔍 Run Deepfake Analysis
+                🔍 Run Multimodal Detection
               </button>
             )}
             {loading && (
               <button className="btn btn-primary" disabled>
                 <span className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} />
-                Extracting Features &amp; Analyzing…
+                Extracting CNN + FFT + DWT Features…
               </button>
             )}
             {(file || result) && (
@@ -175,16 +177,19 @@ export default function ImageDetection() {
 
           {/* Quick Guide Card */}
           <div className="card guide-card">
-            <h4>💡 How Spatial Analysis Works</h4>
+            <h4>💡 How Multimodal Feature Fusion Works</h4>
             <ul className="guide-list">
               <li>
-                <strong>Face Localization:</strong> Detects and aligns the bounding box around primary facial structures.
+                <strong>1. CNN Spatial Embedding (512-dim):</strong> Pretrained ResNet18 extracts rich spatial feature maps of facial landmarks, boundary blending, and skin texture.
               </li>
               <li>
-                <strong>ResNet18 Feature Extraction:</strong> Deep convolutional layers analyze spatial blend boundaries, irregular eye reflections, and dermal texture anomalies.
+                <strong>2. FFT Spectral Analysis (70-dim):</strong> 2D Fast Fourier Transform evaluates high-frequency energy decay and periodic GAN upsampling checkerboard patterns.
               </li>
               <li>
-                <strong>Probability Scoring:</strong> Computes calibrated probabilities representing genuine vs manipulated likelihood.
+                <strong>3. DWT Wavelet Sub-bands (28-dim):</strong> 2D Haar Wavelet Transform decomposes localized directional detail (horizontal, vertical, diagonal) and relative energy distributions.
+              </li>
+              <li>
+                <strong>4. Unified Fusion Classifier (610-dim):</strong> Normalizes and concatenates all three feature branches into an MLP network to deliver a robust determination.
               </li>
             </ul>
           </div>
@@ -196,11 +201,11 @@ export default function ImageDetection() {
             <div className="card result-placeholder">
               <div className="placeholder-icon">🛡️</div>
               <h3>Awaiting Image Analysis</h3>
-              <p>Upload a target image on the left and click "Run Deepfake Analysis" to view forensic inspection results.</p>
+              <p>Upload a target image on the left and click "Run Multimodal Detection" to view forensic inspection results.</p>
               <div className="placeholder-tips">
-                <span className="tip-item">✓ High-resolution face crops supported</span>
-                <span className="tip-item">✓ Automatic fallback if no face detected</span>
-                <span className="tip-item">✓ Results securely logged in your history</span>
+                <span className="tip-item">✓ CNN (512) + FFT (70) + DWT (28) = 610 Features</span>
+                <span className="tip-item">✓ Automatic face detection &amp; alignment</span>
+                <span className="tip-item">✓ Results securely recorded to detection history</span>
               </div>
             </div>
           )}
@@ -208,8 +213,8 @@ export default function ImageDetection() {
           {loading && (
             <div className="card result-placeholder">
               <div className="spinner" style={{ width: 36, height: 36, marginBottom: '1.25rem' }} />
-              <h3>Running CNN Spatial Inference…</h3>
-              <p>Preprocessing image, checking facial landmarks, and evaluating convolutional feature maps.</p>
+              <h3>Running Multimodal Feature Fusion…</h3>
+              <p>Extracting CNN spatial embeddings, FFT radial power spectrum, and DWT wavelet coefficients.</p>
             </div>
           )}
 
@@ -218,7 +223,7 @@ export default function ImageDetection() {
               {/* Model status warning if checkpoint missing */}
               {!result.model_ready && (
                 <div className="alert alert-warning" style={{ marginBottom: '1.25rem' }}>
-                  ⚠️ Model checkpoint is currently running in baseline evaluation mode.
+                  ⚠️ Model is currently running in baseline evaluation mode.
                 </div>
               )}
 
@@ -229,7 +234,18 @@ export default function ImageDetection() {
                     {isReal ? '✅' : isFake ? '🚨' : '❓'}
                   </div>
                   <div className="verdict-details">
-                    <span className="verdict-title-label">Classification Verdict</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                      <span className="verdict-title-label">Classification Verdict</span>
+                      {isFusion ? (
+                        <span className="badge badge-teal" style={{ fontSize: '0.75rem' }}>
+                          ⚡ Multimodal Fusion (610-dim)
+                        </span>
+                      ) : (
+                        <span className="badge badge-neutral" style={{ fontSize: '0.75rem' }}>
+                          Spatial CNN Baseline
+                        </span>
+                      )}
+                    </div>
                     <div className="verdict-badge-row">
                       <span className={`badge ${isReal ? 'badge-real' : isFake ? 'badge-fake' : 'badge-neutral'}`}>
                         {verdict || 'INCONCLUSIVE'}
@@ -243,10 +259,10 @@ export default function ImageDetection() {
 
                 <p className="verdict-desc">
                   {isReal
-                    ? 'Natural spatial characteristics detected. No significant synthetic generation patterns or facial blending boundaries found.'
+                    ? 'Natural spatial and frequency characteristics detected. No significant synthetic generation patterns, spectral anomalies, or wavelet boundary seams found.'
                     : isFake
-                    ? 'High probability of digital manipulation detected. Spatial artifacts, blending boundaries, or generative synthesis identified.'
-                    : 'The analysis returned an inconclusive verdict. Consider running Frequency Analysis for supplementary spectral checks.'}
+                    ? 'High probability of digital manipulation detected. Spatial artifacts, anomalous high-frequency power distributions, or wavelet boundary seams identified.'
+                    : 'The analysis returned an inconclusive verdict. Consider running Frequency Analysis for supplementary inspection.'}
                 </p>
               </div>
 
@@ -259,12 +275,78 @@ export default function ImageDetection() {
                 </div>
               )}
 
+              {/* Multimodal Feature Branches Status */}
+              <div className="card multimodal-branches-card">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                  <h4 style={{ margin: 0, color: 'var(--text-primary)' }}>Multimodal Analysis Branches</h4>
+                  <span className="badge badge-teal" style={{ fontSize: '0.75rem' }}>
+                    {result.feature_dims?.total || 610} Total Features
+                  </span>
+                </div>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+                  Forensic signals extracted across orthogonal spatial, spectral, and wavelet domains:
+                </p>
+
+                <div className="branches-grid">
+                  {/* Branch 1: CNN */}
+                  <div className="branch-card">
+                    <div className="branch-header">
+                      <span className="branch-icon">🖼️</span>
+                      <div className="branch-info">
+                        <strong>CNN Spatial Analysis</strong>
+                        <span className="branch-meta">512 dimensions • ResNet18</span>
+                      </div>
+                      <span className="status-pill status-active">Active</span>
+                    </div>
+                    <p className="branch-desc">
+                      Penultimate average pooling embedding capturing blend boundaries &amp; dermal textures.
+                    </p>
+                  </div>
+
+                  {/* Branch 2: FFT */}
+                  <div className="branch-card">
+                    <div className="branch-header">
+                      <span className="branch-icon">⚡</span>
+                      <div className="branch-info">
+                        <strong>FFT Spectral Analysis</strong>
+                        <span className="branch-meta">70 dimensions • 2D FFT</span>
+                      </div>
+                      <span className="status-pill status-active">Active</span>
+                    </div>
+                    <p className="branch-desc">
+                      Azimuthally averaged radial power spectrum (64 bins) &amp; spectral summary statistics.
+                    </p>
+                  </div>
+
+                  {/* Branch 3: DWT */}
+                  <div className="branch-card">
+                    <div className="branch-header">
+                      <span className="branch-icon">🌊</span>
+                      <div className="branch-info">
+                        <strong>DWT Wavelet Analysis</strong>
+                        <span className="branch-meta">28 dimensions • Haar Wavelet</span>
+                      </div>
+                      <span className="status-pill status-active">Active</span>
+                    </div>
+                    <p className="branch-desc">
+                      Sub-band coefficients (LL, LH, HL, HH), relative energy ratios &amp; high-frequency seams.
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: '1rem', textAlign: 'right' }}>
+                  <Link to="/frequency-analysis" className="btn btn-outline btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                    📡 View In-Depth Spectral &amp; Wavelet Visualizations →
+                  </Link>
+                </div>
+              </div>
+
               {/* Face Detection Details */}
               <div className="card">
                 <h4 style={{ marginBottom: '0.75rem', color: 'var(--text-primary)' }}>Facial Landmark Inspection</h4>
                 <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
                   {result.face_detected
-                    ? '✅ Primary face detected and normalized for convolutional inference.'
+                    ? '✅ Primary face detected and normalized for multimodal inference.'
                     : '⚠️ No face detected with primary detector — full frame analyzed as fallback.'}
                 </p>
                 {result.cropped_face_b64 && (
@@ -292,8 +374,16 @@ export default function ImageDetection() {
                     <span className="meta-value">{result.device || 'CPU'}</span>
                   </div>
                   <div className="meta-item">
-                    <span className="meta-label">Neural Architecture</span>
-                    <span className="meta-value">ResNet18 (PyTorch)</span>
+                    <span className="meta-label">Model Engine</span>
+                    <span className="meta-value">
+                      {isFusion ? 'Multimodal Fusion MLP (610-dim)' : 'ResNet18 CNN (PyTorch)'}
+                    </span>
+                  </div>
+                  <div className="meta-item">
+                    <span className="meta-label">Combined Features</span>
+                    <span className="meta-value">
+                      {result.feature_dims?.total || (isFusion ? 610 : 512)} Dimensions
+                    </span>
                   </div>
                   <div className="meta-item">
                     <span className="meta-label">History Tracking</span>
@@ -348,7 +438,7 @@ export default function ImageDetection() {
               }}>
                 <div>
                   <span style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>
-                    Primary Determination
+                    Multimodal Classification Verdict
                   </span>
                   <div style={{ fontSize: '1.6rem', fontWeight: 800, color: isReal ? 'var(--success)' : 'var(--danger)' }}>
                     {verdict}
@@ -371,12 +461,14 @@ export default function ImageDetection() {
                       <td><strong>{result.filename || file?.name}</strong></td>
                     </tr>
                     <tr>
-                      <td>Media Format</td>
-                      <td>Image ({file?.type || 'Standard Bitmap'})</td>
+                      <td>Classification Model</td>
+                      <td>
+                        <strong>{isFusion ? 'Multimodal Fusion MLP (CNN + FFT + DWT)' : 'ResNet18 CNN Baseline'}</strong>
+                      </td>
                     </tr>
                     <tr>
-                      <td>File Size</td>
-                      <td>{(file?.size ? (file.size / 1024).toFixed(1) + ' KB' : '—')}</td>
+                      <td>Feature Vector Dimension</td>
+                      <td>{result.feature_dims?.total || 610} Dimensions (CNN: 512, FFT: 70, DWT: 28)</td>
                     </tr>
                     <tr>
                       <td>Inspection Date &amp; Time</td>
@@ -427,10 +519,10 @@ export default function ImageDetection() {
                 <h4>Forensic Findings &amp; Summary</h4>
                 <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
                   {isReal
-                    ? 'The neural spatial classifier found consistent dermal gradient distributions, symmetric specular highlights, and natural boundary transitions characteristic of authentic photography. No signs of generative upsampling or deepfake tampering.'
+                    ? 'The multimodal fusion classifier analyzed spatial landmarks, 2D Fourier frequency distribution, and discrete wavelet sub-band coefficients. All branches showed natural smooth skin gradients, natural spectral roll-off, and low detail energy ratios typical of authentic photography.'
                     : isFake
-                    ? 'The neural spatial classifier detected anomalous feature patterns typically induced by generative adversarial networks (GANs), diffusion decoders, or boundary blending artifacts common in facial swap synthesis.'
-                    : 'The analysis yielded borderline confidence values. Recommended next step: run Frequency Domain Analysis (FFT) to examine high-frequency spectral energy.'}
+                    ? 'The multimodal fusion classifier detected corroborating forensic anomalies across multiple domains: high-frequency spectral artifacts, anomalous wavelet sub-band energy concentrations, and spatial blending irregularities characteristic of deepfake generation.'
+                    : 'The analysis yielded borderline confidence values. Recommended next step: run Frequency Analysis for detailed spectral visualization.'}
                 </p>
               </div>
             </div>

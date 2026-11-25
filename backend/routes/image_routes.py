@@ -107,8 +107,11 @@ async def detect_image(
                     "file_size_bytes": len(raw_bytes),
                     "details": {
                         "model_ready": result.get("is_ready", False),
+                        "model_type": result.get("model_type", "spatial_resnet18"),
+                        "is_fusion": result.get("is_fusion", False),
                         "device": str(result.get("device")),
                         "label": result.get("label"),
+                        "feature_dims": result.get("feature_dims"),
                     },
                 }
                 insert_res = await db["detection_history"].insert_one(doc)
@@ -119,6 +122,8 @@ async def detect_image(
 
     return {
         "model_ready": result.get("is_ready", False),
+        "model_type": result.get("model_type", "spatial_resnet18"),
+        "is_fusion": result.get("is_fusion", False),
         "prediction": result.get("prediction"),
         "label": result.get("label"),
         "confidence": result.get("confidence"),
@@ -126,6 +131,9 @@ async def detect_image(
         "deepfake_prob": result.get("deepfake_prob"),
         "face_detected": result.get("face_detected"),
         "cropped_face_b64": cropped_b64,
+        "feature_dims": result.get("feature_dims"),
+        "multimodal_branches": result.get("multimodal_branches"),
+        "baseline_cnn": result.get("baseline_cnn"),
         "device": result.get("device"),
         "error": result.get("error"),
         "filename": file.filename,

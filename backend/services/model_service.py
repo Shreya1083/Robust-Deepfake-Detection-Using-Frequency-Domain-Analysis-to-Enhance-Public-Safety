@@ -42,6 +42,14 @@ class ModelService:
     def checkpoint_meta(self):
         return self._detector.checkpoint_meta
 
+    @property
+    def is_fusion(self) -> bool:
+        return getattr(self._detector, "is_fusion", False)
+
+    @property
+    def model_type(self) -> str:
+        return getattr(self._detector, "model_type", "unknown")
+
     def predict_image(self, image_input) -> dict:
         return self._detector.predict_image(image_input)
 

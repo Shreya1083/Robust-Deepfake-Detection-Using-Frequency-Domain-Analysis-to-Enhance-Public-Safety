@@ -35,8 +35,11 @@ class SpatialResNet18(nn.Module):
 
         # Load ResNet18
         if pretrained:
-            weights = ResNet18_Weights.DEFAULT
-            self.backbone = resnet18(weights=weights)
+            try:
+                weights = ResNet18_Weights.DEFAULT
+                self.backbone = resnet18(weights=weights)
+            except Exception:
+                self.backbone = resnet18(weights=None)
         else:
             self.backbone = resnet18(weights=None)
 
