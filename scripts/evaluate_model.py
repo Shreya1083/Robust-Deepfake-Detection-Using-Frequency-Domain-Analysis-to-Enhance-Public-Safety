@@ -184,12 +184,15 @@ def evaluate_test_set(
     all_preds = np.array(all_preds)
     all_probs = np.array(all_probs)
 
-    # Calculate metrics
+    # Calculate standard metrics (tau=0.50)
     acc = accuracy_score(all_labels, all_preds)
     prec = precision_score(all_labels, all_preds, zero_division=0)
     rec = recall_score(all_labels, all_preds, zero_division=0)
     f1 = f1_score(all_labels, all_preds, zero_division=0)
     cm = confusion_matrix(all_labels, all_preds)
+    tn, fp, fn, tp = cm.ravel() if cm.shape == (2, 2) else (0, 0, 0, 0)
+    fpr = fp / max(fp + tn, 1)
+    fnr = fn / max(fn + tp, 1)
 
     try:
         auc = roc_auc_score(all_labels, all_probs)
@@ -198,15 +201,40 @@ def evaluate_test_set(
 
     report = classification_report(all_labels, all_preds, target_names=["REAL", "DEEPFAKE"], output_dict=True)
 
+    # Calculate calibrated metrics (tau=optimal_threshold)
+    optimal_tau = float(checkpoint.get("optimal_threshold", 0.50))
+    calib_preds = (all_probs >= optimal_tau).astype(int)
+    calib_acc = accuracy_score(all_labels, calib_preds)
+    calib_prec = precision_score(all_labels, calib_preds, zero_division=0)
+    calib_rec = recall_score(all_labels, calib_preds, zero_division=0)
+    calib_f1 = f1_score(all_labels, calib_preds, zero_division=0)
+    calib_cm = confusion_matrix(all_labels, calib_preds)
+    c_tn, c_fp, c_fn, c_tp = calib_cm.ravel() if calib_cm.shape == (2, 2) else (0, 0, 0, 0)
+    calib_fpr = c_fp / max(c_fp + c_tn, 1)
+    calib_fnr = c_fn / max(c_fn + c_tp, 1)
+
     metrics = {
         "accuracy": round(float(acc), 4),
         "precision": round(float(prec), 4),
         "recall": round(float(rec), 4),
         "f1_score": round(float(f1), 4),
         "roc_auc": round(float(auc), 4),
+        "fpr": round(float(fpr), 4),
+        "fnr": round(float(fnr), 4),
         "confusion_matrix": cm.tolist(),
         "classification_report": report,
         "test_samples": len(test_dataset),
+        "optimal_threshold": optimal_tau,
+        "calibrated_metrics": {
+            "threshold": optimal_tau,
+            "accuracy": round(float(calib_acc), 4),
+            "precision": round(float(calib_prec), 4),
+            "recall": round(float(calib_rec), 4),
+            "f1_score": round(float(calib_f1), 4),
+            "fpr": round(float(calib_fpr), 4),
+            "fnr": round(float(calib_fnr), 4),
+            "confusion_matrix": calib_cm.tolist(),
+        },
     }
 
     # Plot graphs

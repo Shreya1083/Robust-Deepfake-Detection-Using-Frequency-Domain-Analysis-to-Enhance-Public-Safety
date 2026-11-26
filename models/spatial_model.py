@@ -56,6 +56,16 @@ class SpatialResNet18(nn.Module):
         if freeze_backbone:
             self.freeze_backbone_layers(freeze=True)
 
+    def freeze_early_layers(self) -> None:
+        """Freeze conv1, bn1, layer1, layer2, layer3. Keep layer4 and classifier trainable."""
+        for name, child in self.backbone.named_children():
+            if name != "layer4":
+                for param in child.parameters():
+                    param.requires_grad = False
+            else:
+                for param in child.parameters():
+                    param.requires_grad = True
+
     def freeze_backbone_layers(self, freeze: bool = True) -> None:
         """Freeze or unfreeze the convolutional backbone parameters."""
         for param in self.backbone.parameters():
@@ -109,6 +119,7 @@ def build_spatial_model(
     pretrained: bool = True,
     dropout_rate: float = 0.3,
     freeze_backbone: bool = False,
+    fine_tune_layer4: bool = False,
     device: Optional[torch.device] = None,
 ) -> Tuple[SpatialResNet18, torch.device]:
     """Helper factory to instantiate and device-bind the spatial ResNet18 model."""
@@ -121,5 +132,7 @@ def build_spatial_model(
         dropout_rate=dropout_rate,
         freeze_backbone=freeze_backbone,
     )
+    if fine_tune_layer4:
+        model.freeze_early_layers()
     model.to(device)
     return model, device

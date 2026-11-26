@@ -126,6 +126,7 @@ def train_model(
     epochs: int = 25,
     patience: int = 5,
     freeze_backbone: bool = False,
+    fine_tune_layer4: bool = False,
     save_path: Optional[Path] = None,
     seed: int = 42,
 ) -> Dict:
@@ -167,6 +168,7 @@ def train_model(
     model, _ = build_spatial_model(
         pretrained=True,
         freeze_backbone=freeze_backbone,
+        fine_tune_layer4=fine_tune_layer4,
         device=device,
     )
 
@@ -273,6 +275,7 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", type=int, default=25, help="Number of epochs.")
     parser.add_argument("--patience", type=int, default=5, help="Early stopping patience.")
     parser.add_argument("--freeze-backbone", action="store_true", help="Freeze ResNet18 backbone.")
+    parser.add_argument("--fine-tune-layer4", action="store_true", help="Freeze conv1-layer3, fine-tune layer4 + classifier.")
     parser.add_argument("--save-path", type=str, default=None, help="Output checkpoint path.")
     args = parser.parse_args()
 
@@ -282,5 +285,6 @@ if __name__ == "__main__":
         epochs=args.epochs,
         patience=args.patience,
         freeze_backbone=args.freeze_backbone,
+        fine_tune_layer4=args.fine_tune_layer4,
         save_path=Path(args.save_path) if args.save_path else None,
     )

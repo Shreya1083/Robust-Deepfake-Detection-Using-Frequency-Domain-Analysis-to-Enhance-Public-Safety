@@ -24,6 +24,60 @@ function ProbBar({ label, value, colorVar }) {
   )
 }
 
+function RadialChart({ spectrum }) {
+  if (!spectrum || spectrum.length === 0) return null
+  const W = 360, H = 130, N = spectrum.length
+  const pts = spectrum.map((v, i) => {
+    const x = (i / (N - 1)) * W
+    const y = H - v * (H - 15) - 8
+    return `${x.toFixed(1)},${y.toFixed(1)}`
+  }).join(' ')
+
+  return (
+    <div className="radial-chart-container">
+      <div className="chart-header">
+        <span className="chart-title">Azimuthally Averaged Radial Power Spectrum (64 Frequency Bins)</span>
+        <span className="chart-subtitle">Energy decay from DC Center (0) to Nyquist Frequency (64)</span>
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" height="130" className="chart-svg">
+        <defs>
+          <linearGradient id="radialSpecGrad" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#10b981" />
+            <stop offset="35%" stopColor="#0d9488" />
+            <stop offset="100%" stopColor="#ef4444" />
+          </linearGradient>
+        </defs>
+        {/* Horizontal grid lines */}
+        {[0.25, 0.5, 0.75].map(v => (
+          <line
+            key={v}
+            x1="0"
+            y1={H - v * (H - 15) - 8}
+            x2={W}
+            y2={H - v * (H - 15) - 8}
+            stroke="var(--border)"
+            strokeWidth="1"
+            strokeDasharray="4,4"
+          />
+        ))}
+        {/* Spectral energy curve */}
+        <polyline points={pts} fill="none" stroke="url(#radialSpecGrad)" strokeWidth="2.5" />
+        {/* Band indicators */}
+        <line x1={W * 0.10} y1="0" x2={W * 0.10} y2={H} stroke="var(--border)" strokeWidth="1" strokeDasharray="2,3" />
+        <line x1={W * 0.40} y1="0" x2={W * 0.40} y2={H} stroke="var(--border)" strokeWidth="1" strokeDasharray="2,3" />
+        <text x="6" y={H - 4} fontSize="9" fill="var(--success)" fontWeight="700">LOW (0-10%)</text>
+        <text x={W * 0.15} y={H - 4} fontSize="9" fill="var(--accent)" fontWeight="700">MID (10-40%)</text>
+        <text x={W * 0.55} y={H - 4} fontSize="9" fill="var(--danger)" fontWeight="700">HIGH (40-100%)</text>
+      </svg>
+      <div className="chart-legend-row">
+        <span className="text-success">← Low Freq (Global Illumination)</span>
+        <span className="text-accent">Mid Freq (Facial Texture)</span>
+        <span className="text-danger">High Freq (Edges &amp; GAN Grids) →</span>
+      </div>
+    </div>
+  )
+}
+
 export default function ImageDetection() {
   const [file, setFile] = useState(null)
   const [preview, setPreview] = useState(null)
@@ -32,6 +86,7 @@ export default function ImageDetection() {
   const [error, setError] = useState(null)
   const [dragging, setDragging] = useState(false)
   const [showReport, setShowReport] = useState(false)
+  const [zoomImage, setZoomImage] = useState(null)
 
   const handleFile = (f) => {
     if (!f) return
@@ -93,22 +148,26 @@ export default function ImageDetection() {
     setResult(null)
     setError(null)
     setShowReport(false)
+    setZoomImage(null)
   }
 
   const verdict = result?.prediction
   const isReal = verdict === 'REAL'
   const isFake = verdict === 'DEEPFAKE'
-  const isFusion = result?.is_fusion || result?.model_type === 'multimodal_fusion'
+
+  const spatial = result?.spatial_analysis
+  const freq = result?.frequency_analysis
+  const dwt = result?.dwt_analysis
+  const summary = result?.analysis_summary
 
   return (
     <div className="page-container image-detection-page">
       <div className="section-header">
-        <span className="badge badge-teal">Multimodal Forensic Analysis (CNN + FFT + DWT)</span>
+        <span className="badge badge-teal">Forensic Multimodal Inspection</span>
         <h1>Image Deepfake Detection</h1>
         <p>
-          Upload a target portrait or digital image. VeriFrame leverages a unified multimodal architecture
-          fusing deep CNN spatial embeddings (512-dim), FFT frequency power spectrum (70-dim), and DWT
-          wavelet detail sub-bands (28-dim) into a 610-dimensional forensic classifier.
+          Upload an image to perform deep spatial feature analysis with convolutional Grad-CAM heatmaps,
+          2D Fast Fourier Transform (FFT) frequency analysis, and Discrete Wavelet Transform (DWT) multi-scale inspection.
         </p>
       </div>
 
@@ -153,13 +212,13 @@ export default function ImageDetection() {
           <div className="upload-actions">
             {file && !loading && (
               <button className="btn btn-primary btn-analyze" onClick={analyze}>
-                🔍 Run Multimodal Detection
+                🔍 Run Forensic Analysis
               </button>
             )}
             {loading && (
               <button className="btn btn-primary" disabled>
                 <span className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} />
-                Extracting CNN + FFT + DWT Features…
+                Extracting Spatial &amp; Frequency Signals…
               </button>
             )}
             {(file || result) && (
@@ -177,19 +236,16 @@ export default function ImageDetection() {
 
           {/* Quick Guide Card */}
           <div className="card guide-card">
-            <h4>💡 How Multimodal Feature Fusion Works</h4>
+            <h4>💡 How VeriFrame Analyzes Media</h4>
             <ul className="guide-list">
               <li>
-                <strong>1. CNN Spatial Embedding (512-dim):</strong> Pretrained ResNet18 extracts rich spatial feature maps of facial landmarks, boundary blending, and skin texture.
+                <strong>Spatial Feature Analysis (Grad-CAM):</strong> ResNet18 convolutional layer gradients highlight the anatomical face regions most influential to the model's prediction.
               </li>
               <li>
-                <strong>2. FFT Spectral Analysis (70-dim):</strong> 2D Fast Fourier Transform evaluates high-frequency energy decay and periodic GAN upsampling checkerboard patterns.
+                <strong>FFT Frequency Analysis:</strong> 2D Fast Fourier Transform uncovers high-frequency energy anomalies and synthetic GAN upsampling patterns.
               </li>
               <li>
-                <strong>3. DWT Wavelet Sub-bands (28-dim):</strong> 2D Haar Wavelet Transform decomposes localized directional detail (horizontal, vertical, diagonal) and relative energy distributions.
-              </li>
-              <li>
-                <strong>4. Unified Fusion Classifier (610-dim):</strong> Normalizes and concatenates all three feature branches into an MLP network to deliver a robust determination.
+                <strong>DWT Wavelet Decomposition:</strong> 2D Haar wavelets isolate horizontal, vertical, and diagonal detail boundaries to inspect boundary blending seams.
               </li>
             </ul>
           </div>
@@ -201,10 +257,11 @@ export default function ImageDetection() {
             <div className="card result-placeholder">
               <div className="placeholder-icon">🛡️</div>
               <h3>Awaiting Image Analysis</h3>
-              <p>Upload a target image on the left and click "Run Multimodal Detection" to view forensic inspection results.</p>
+              <p>Upload a target image on the left and click "Run Forensic Analysis" to view complete spatial and frequency results.</p>
               <div className="placeholder-tips">
-                <span className="tip-item">✓ CNN (512) + FFT (70) + DWT (28) = 610 Features</span>
-                <span className="tip-item">✓ Automatic face detection &amp; alignment</span>
+                <span className="tip-item">✓ Spatial ResNet18 CNN inference with layer4 Grad-CAM</span>
+                <span className="tip-item">✓ 2D FFT magnitude spectrum &amp; radial frequency profile</span>
+                <span className="tip-item">✓ 2D Haar DWT multi-scale subband analysis</span>
                 <span className="tip-item">✓ Results securely recorded to detection history</span>
               </div>
             </div>
@@ -213,39 +270,21 @@ export default function ImageDetection() {
           {loading && (
             <div className="card result-placeholder">
               <div className="spinner" style={{ width: 36, height: 36, marginBottom: '1.25rem' }} />
-              <h3>Running Multimodal Feature Fusion…</h3>
-              <p>Extracting CNN spatial embeddings, FFT radial power spectrum, and DWT wavelet coefficients.</p>
+              <h3>Running Forensic Pipeline…</h3>
+              <p>Detecting facial landmarks, computing ResNet18 layer4 Grad-CAM gradients, calculating 2D FFT spectrum, and evaluating 2D DWT subbands.</p>
             </div>
           )}
 
           {result && (
             <div className="results-content">
-              {/* Model status warning if checkpoint missing */}
-              {!result.model_ready && (
-                <div className="alert alert-warning" style={{ marginBottom: '1.25rem' }}>
-                  ⚠️ Model is currently running in baseline evaluation mode.
-                </div>
-              )}
-
-              {/* Primary Verdict Card */}
+              {/* SECTION A: FINAL DETECTION RESULT */}
               <div className={`card verdict-card ${isReal ? 'verdict-real' : isFake ? 'verdict-fake' : ''}`}>
                 <div className="verdict-header">
                   <div className="verdict-emoji-badge">
                     {isReal ? '✅' : isFake ? '🚨' : '❓'}
                   </div>
                   <div className="verdict-details">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                      <span className="verdict-title-label">Classification Verdict</span>
-                      {isFusion ? (
-                        <span className="badge badge-teal" style={{ fontSize: '0.75rem' }}>
-                          ⚡ Multimodal Fusion (610-dim)
-                        </span>
-                      ) : (
-                        <span className="badge badge-neutral" style={{ fontSize: '0.75rem' }}>
-                          Spatial CNN Baseline
-                        </span>
-                      )}
-                    </div>
+                    <span className="verdict-title-label">Primary Determination</span>
                     <div className="verdict-badge-row">
                       <span className={`badge ${isReal ? 'badge-real' : isFake ? 'badge-fake' : 'badge-neutral'}`}>
                         {verdict || 'INCONCLUSIVE'}
@@ -257,151 +296,258 @@ export default function ImageDetection() {
                   </div>
                 </div>
 
-                <p className="verdict-desc">
-                  {isReal
-                    ? 'Natural spatial and frequency characteristics detected. No significant synthetic generation patterns, spectral anomalies, or wavelet boundary seams found.'
-                    : isFake
-                    ? 'High probability of digital manipulation detected. Spatial artifacts, anomalous high-frequency power distributions, or wavelet boundary seams identified.'
-                    : 'The analysis returned an inconclusive verdict. Consider running Frequency Analysis for supplementary inspection.'}
-                </p>
-              </div>
-
-              {/* Class Probabilities Card */}
-              {result.real_prob != null && (
-                <div className="card">
-                  <h4 style={{ marginBottom: '1rem', color: 'var(--text-primary)' }}>Calibrated Class Probabilities</h4>
-                  <ProbBar label="Authentic (REAL)" value={result.real_prob} colorVar="--success" />
-                  <ProbBar label="Manipulated (DEEPFAKE)" value={result.deepfake_prob} colorVar="--danger" />
-                </div>
-              )}
-
-              {/* Multimodal Feature Branches Status */}
-              <div className="card multimodal-branches-card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                  <h4 style={{ margin: 0, color: 'var(--text-primary)' }}>Multimodal Analysis Branches</h4>
-                  <span className="badge badge-teal" style={{ fontSize: '0.75rem' }}>
-                    {result.feature_dims?.total || 610} Total Features
-                  </span>
-                </div>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-                  Forensic signals extracted across orthogonal spatial, spectral, and wavelet domains:
-                </p>
-
-                <div className="branches-grid">
-                  {/* Branch 1: CNN */}
-                  <div className="branch-card">
-                    <div className="branch-header">
-                      <span className="branch-icon">🖼️</span>
-                      <div className="branch-info">
-                        <strong>CNN Spatial Analysis</strong>
-                        <span className="branch-meta">512 dimensions • ResNet18</span>
-                      </div>
-                      <span className="status-pill status-active">Active</span>
-                    </div>
-                    <p className="branch-desc">
-                      Penultimate average pooling embedding capturing blend boundaries &amp; dermal textures.
-                    </p>
-                  </div>
-
-                  {/* Branch 2: FFT */}
-                  <div className="branch-card">
-                    <div className="branch-header">
-                      <span className="branch-icon">⚡</span>
-                      <div className="branch-info">
-                        <strong>FFT Spectral Analysis</strong>
-                        <span className="branch-meta">70 dimensions • 2D FFT</span>
-                      </div>
-                      <span className="status-pill status-active">Active</span>
-                    </div>
-                    <p className="branch-desc">
-                      Azimuthally averaged radial power spectrum (64 bins) &amp; spectral summary statistics.
-                    </p>
-                  </div>
-
-                  {/* Branch 3: DWT */}
-                  <div className="branch-card">
-                    <div className="branch-header">
-                      <span className="branch-icon">🌊</span>
-                      <div className="branch-info">
-                        <strong>DWT Wavelet Analysis</strong>
-                        <span className="branch-meta">28 dimensions • Haar Wavelet</span>
-                      </div>
-                      <span className="status-pill status-active">Active</span>
-                    </div>
-                    <p className="branch-desc">
-                      Sub-band coefficients (LL, LH, HL, HH), relative energy ratios &amp; high-frequency seams.
-                    </p>
-                  </div>
-                </div>
-
-                <div style={{ marginTop: '1rem', textAlign: 'right' }}>
-                  <Link to="/frequency-analysis" className="btn btn-outline btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
-                    📡 View In-Depth Spectral &amp; Wavelet Visualizations →
-                  </Link>
-                </div>
-              </div>
-
-              {/* Face Detection Details */}
-              <div className="card">
-                <h4 style={{ marginBottom: '0.75rem', color: 'var(--text-primary)' }}>Facial Landmark Inspection</h4>
-                <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-                  {result.face_detected
-                    ? '✅ Primary face detected and normalized for multimodal inference.'
-                    : '⚠️ No face detected with primary detector — full frame analyzed as fallback.'}
-                </p>
-                {result.cropped_face_b64 && (
-                  <div className="face-crop-preview">
-                    <img
-                      src={`data:image/jpeg;base64,${result.cropped_face_b64}`}
-                      alt="Cropped face inspection"
-                      className="cropped-face-img"
-                    />
-                    <span className="crop-label">Extracted Face Region (224×224)</span>
+                {/* Class Probabilities Bar */}
+                {result.real_prob != null && (
+                  <div className="verdict-probs-wrap">
+                    <ProbBar label="Authentic (REAL)" value={result.real_prob} colorVar="--success" />
+                    <ProbBar label="Manipulated (DEEPFAKE)" value={result.deepfake_prob} colorVar="--danger" />
                   </div>
                 )}
               </div>
 
-              {/* Technical Inspection Metadata */}
-              <div className="card meta-card">
-                <h4 style={{ marginBottom: '0.75rem', color: 'var(--text-primary)' }}>Technical Specifications</h4>
-                <div className="meta-grid">
-                  <div className="meta-item">
-                    <span className="meta-label">File Name</span>
-                    <span className="meta-value">{result.filename || file?.name}</span>
+              {/* SECTION B: SPATIAL FEATURE ANALYSIS (CNN – GRAD-CAM) */}
+              {spatial && spatial.status === 'active' && (
+                <div className="card forensic-section-card">
+                  <div className="section-card-header">
+                    <div>
+                      <span className="badge badge-teal">Spatial Feature Analysis (CNN – Grad-CAM)</span>
+                      <h3>CNN Spatial Activation &amp; Saliency</h3>
+                    </div>
+                    <span className="badge badge-neutral">{spatial.architecture || 'ResNet18'}</span>
                   </div>
-                  <div className="meta-item">
-                    <span className="meta-label">Inference Device</span>
-                    <span className="meta-value">{result.device || 'CPU'}</span>
+
+                  <p className="section-desc">
+                    {spatial.explanation || 'The CNN spatial analysis highlights facial regions that contributed most to the classification.'}
+                  </p>
+
+                  {/* 3-View Spatial Visualizations Grid */}
+                  <div className="visuals-trio-grid">
+                    <div className="visual-col" onClick={() => result.cropped_face_b64 && setZoomImage({ src: `data:image/jpeg;base64,${result.cropped_face_b64}`, title: 'Preprocessed Face Input' })}>
+                      <span className="visual-caption">1. Input Face Crop</span>
+                      {result.cropped_face_b64 ? (
+                        <img
+                          src={`data:image/jpeg;base64,${result.cropped_face_b64}`}
+                          alt="Input Face Crop"
+                          className="forensic-thumb"
+                        />
+                      ) : (
+                        <div className="thumb-placeholder">Face Not Cropped</div>
+                      )}
+                      <span className="click-to-zoom">🔍 Click to enlarge</span>
+                    </div>
+
+                    <div className="visual-col" onClick={() => spatial.heatmap_b64 && setZoomImage({ src: `data:image/jpeg;base64,${spatial.heatmap_b64}`, title: 'Grad-CAM Activation Heatmap' })}>
+                      <span className="visual-caption">2. Grad-CAM Heatmap</span>
+                      {spatial.heatmap_b64 ? (
+                        <img
+                          src={`data:image/jpeg;base64,${spatial.heatmap_b64}`}
+                          alt="Grad-CAM Heatmap"
+                          className="forensic-thumb"
+                        />
+                      ) : (
+                        <div className="thumb-placeholder">Heatmap Unavailable</div>
+                      )}
+                      <span className="click-to-zoom">🔍 Click to enlarge</span>
+                    </div>
+
+                    <div className="visual-col" onClick={() => spatial.overlay_b64 && setZoomImage({ src: `data:image/jpeg;base64,${spatial.overlay_b64}`, title: 'Grad-CAM Saliency Overlay' })}>
+                      <span className="visual-caption">3. Spatial Overlay</span>
+                      {spatial.overlay_b64 ? (
+                        <img
+                          src={`data:image/jpeg;base64,${spatial.overlay_b64}`}
+                          alt="Heatmap Overlay"
+                          className="forensic-thumb"
+                        />
+                      ) : (
+                        <div className="thumb-placeholder">Overlay Unavailable</div>
+                      )}
+                      <span className="click-to-zoom">🔍 Click to enlarge</span>
+                    </div>
                   </div>
-                  <div className="meta-item">
-                    <span className="meta-label">Model Engine</span>
-                    <span className="meta-value">
-                      {isFusion ? 'Multimodal Fusion MLP (610-dim)' : 'ResNet18 CNN (PyTorch)'}
-                    </span>
-                  </div>
-                  <div className="meta-item">
-                    <span className="meta-label">Combined Features</span>
-                    <span className="meta-value">
-                      {result.feature_dims?.total || (isFusion ? 610 : 512)} Dimensions
-                    </span>
-                  </div>
-                  <div className="meta-item">
-                    <span className="meta-label">History Tracking</span>
-                    <span className="meta-value text-success">
-                      {result.history_id ? '✓ Saved to Database' : 'Session Active'}
-                    </span>
+
+                  {/* Spatial Technical Specs */}
+                  <div className="spatial-specs-grid">
+                    <div className="spec-item">
+                      <span className="spec-label">Feature Extraction Layer</span>
+                      <span className="spec-val">{spatial.target_layer || 'layer4 (Conv2d: 512 channels, 7×7)'}</span>
+                    </div>
+                    <div className="spec-item">
+                      <span className="spec-label">Extraction Status</span>
+                      <span className="spec-val text-success">● Active (Computed from Gradients)</span>
+                    </div>
+                    <div className="spec-item">
+                      <span className="spec-label">Influential Salient Regions</span>
+                      <span className="spec-val text-accent">{spatial.salient_regions || 'Facial contours'}</span>
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
 
-              {/* Action Buttons: View Report & Frequency Shortcut */}
+              {/* SECTION C: FFT FREQUENCY ANALYSIS */}
+              {freq && freq.status === 'active' && (
+                <div className="card forensic-section-card">
+                  <div className="section-card-header">
+                    <div>
+                      <span className="badge badge-teal">Frequency Domain Analysis (2D FFT)</span>
+                      <h3>Spectral Magnitude &amp; Radial Distribution</h3>
+                    </div>
+                    <span className="badge badge-neutral">2D Fast Fourier Transform</span>
+                  </div>
+
+                  <p className="section-desc">
+                    {freq.explanation || 'Frequency analysis examines image patterns and frequency distributions that may reveal inconsistencies associated with image manipulation.'}
+                  </p>
+
+                  {/* FFT Visualizations */}
+                  <div className="visuals-trio-grid">
+                    <div className="visual-col" onClick={() => result.cropped_face_b64 && setZoomImage({ src: `data:image/jpeg;base64,${result.cropped_face_b64}`, title: 'Grayscale Spatial Input' })}>
+                      <span className="visual-caption">1. Grayscale Spatial Input</span>
+                      {result.cropped_face_b64 && (
+                        <img src={`data:image/jpeg;base64,${result.cropped_face_b64}`} alt="Grayscale Input" className="forensic-thumb" />
+                      )}
+                      <span className="click-to-zoom">🔍 Click to enlarge</span>
+                    </div>
+
+                    <div className="visual-col" onClick={() => freq.magnitude_b64 && setZoomImage({ src: `data:image/jpeg;base64,${freq.magnitude_b64}`, title: 'Log-Magnitude FFT Spectrum (BONE)' })}>
+                      <span className="visual-caption">2. Magnitude Spectrum (Log)</span>
+                      {freq.magnitude_b64 && (
+                        <img src={`data:image/jpeg;base64,${freq.magnitude_b64}`} alt="Magnitude Spectrum" className="forensic-thumb" />
+                      )}
+                      <span className="click-to-zoom">🔍 Click to enlarge</span>
+                    </div>
+
+                    <div className="visual-col" onClick={() => freq.log_spectrum_b64 && setZoomImage({ src: `data:image/jpeg;base64,${freq.log_spectrum_b64}`, title: 'Colorized Power Spectrum (JET)' })}>
+                      <span className="visual-caption">3. Power Distribution (JET)</span>
+                      {freq.log_spectrum_b64 && (
+                        <img src={`data:image/jpeg;base64,${freq.log_spectrum_b64}`} alt="Colorized Spectrum" className="forensic-thumb" />
+                      )}
+                      <span className="click-to-zoom">🔍 Click to enlarge</span>
+                    </div>
+                  </div>
+
+                  {/* Computed FFT Metrics */}
+                  {freq.metrics && (
+                    <div className="fft-metrics-container">
+                      <div className="metrics-chip-row">
+                        <div className="metric-chip">
+                          <span className="m-label">Low-Freq Energy (0–10%)</span>
+                          <span className="m-val text-success">{freq.metrics.low_energy_pct}%</span>
+                          <span className="m-sub">Global illumination</span>
+                        </div>
+                        <div className="metric-chip">
+                          <span className="m-label">Mid-Freq Energy (10–40%)</span>
+                          <span className="m-val text-accent">{freq.metrics.mid_energy_pct}%</span>
+                          <span className="m-sub">Facial texture</span>
+                        </div>
+                        <div className="metric-chip">
+                          <span className="m-label">High-Freq Energy (40–100%)</span>
+                          <span className="m-val text-danger">{freq.metrics.high_energy_pct}%</span>
+                          <span className="m-sub">Edges &amp; GAN artifacts</span>
+                        </div>
+                        <div className="metric-chip">
+                          <span className="m-label">High Energy Ratio</span>
+                          <span className="m-val">{freq.metrics.high_energy_ratio}</span>
+                          <span className="m-sub">Relative decay ratio</span>
+                        </div>
+                      </div>
+
+                      {/* Radial Power Profile Chart */}
+                      {freq.metrics.radial_spectrum && (
+                        <RadialChart spectrum={freq.metrics.radial_spectrum} />
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* SECTION D: DWT WAVELET ANALYSIS */}
+              {dwt && dwt.status === 'active' && (
+                <div className="card forensic-section-card">
+                  <div className="section-card-header">
+                    <div>
+                      <span className="badge badge-teal">Discrete Wavelet Transform (2D Haar DWT)</span>
+                      <h3>Multi-Scale Directional Subband Decomposition</h3>
+                    </div>
+                    <span className="badge badge-neutral">Haar Wavelet</span>
+                  </div>
+
+                  <p className="section-desc">
+                    {dwt.explanation || '2D DWT separates spatial information into multi-scale approximation and directional detail coefficients.'}
+                  </p>
+
+                  <div className="dwt-layout-row">
+                    {dwt.subbands_b64 && (
+                      <div className="dwt-visual-wrap" onClick={() => setZoomImage({ src: `data:image/jpeg;base64,${dwt.subbands_b64}`, title: '2D Haar DWT Subbands (LL, LH, HL, HH)' })}>
+                        <img src={`data:image/jpeg;base64,${dwt.subbands_b64}`} alt="DWT Subbands 2x2" className="dwt-subbands-thumb" />
+                        <span className="click-to-zoom">🔍 Click to enlarge (LL · LH · HL · HH)</span>
+                      </div>
+                    )}
+
+                    {dwt.features && (
+                      <div className="dwt-metrics-table-wrap">
+                        <table className="dwt-table">
+                          <thead>
+                            <tr>
+                              <th>Subband</th>
+                              <th>Component Type</th>
+                              <th>Energy Ratio</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr>
+                              <td><strong>LL</strong></td>
+                              <td>Low-Low (Approximation)</td>
+                              <td><span className="text-success">{(dwt.features.ll.energy_ratio * 100).toFixed(2)}%</span></td>
+                            </tr>
+                            <tr>
+                              <td><strong>LH</strong></td>
+                              <td>Low-High (Horizontal Details)</td>
+                              <td><span className="text-accent">{(dwt.features.lh.energy_ratio * 100).toFixed(2)}%</span></td>
+                            </tr>
+                            <tr>
+                              <td><strong>HL</strong></td>
+                              <td>High-Low (Vertical Details)</td>
+                              <td><span className="text-accent">{(dwt.features.hl.energy_ratio * 100).toFixed(2)}%</span></td>
+                            </tr>
+                            <tr>
+                              <td><strong>HH</strong></td>
+                              <td>High-High (Diagonal Seams)</td>
+                              <td><span className="text-danger">{(dwt.features.hh.energy_ratio * 100).toFixed(2)}%</span></td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* SECTION E: ANALYSIS SUMMARY */}
+              {summary && (
+                <div className="card summary-card">
+                  <div className="summary-card-header">
+                    <span className="summary-icon">📋</span>
+                    <div>
+                      <h4>Holistic Forensic Analysis Summary</h4>
+                      <p className="text-muted" style={{ fontSize: '0.8rem', margin: 0 }}>
+                        Cross-domain synthesis of spatial activations, frequency spectra, and wavelet decompositions
+                      </p>
+                    </div>
+                  </div>
+                  <div className="summary-body">
+                    <p className="summary-text">{summary}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons: View Report Modal & JSON */}
               <div className="card action-card">
                 <div className="action-buttons-grid">
                   <button className="btn btn-primary" onClick={() => setShowReport(true)}>
-                    📄 View Forensic Report
+                    📄 View Complete Forensic Report
                   </button>
                   <Link to="/frequency-analysis" className="btn btn-outline">
-                    📡 Run Frequency Analysis
+                    📡 Open Standalone Frequency Studio
                   </Link>
                 </div>
               </div>
@@ -409,6 +555,21 @@ export default function ImageDetection() {
           )}
         </div>
       </div>
+
+      {/* Image Zoom Modal */}
+      {zoomImage && (
+        <div className="modal-backdrop" onClick={() => setZoomImage(null)}>
+          <div className="zoom-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h4>{zoomImage.title}</h4>
+              <button className="modal-close" onClick={() => setZoomImage(null)}>✕</button>
+            </div>
+            <div className="zoom-modal-body">
+              <img src={zoomImage.src} alt={zoomImage.title} className="zoom-large-img" />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Forensic Report Modal */}
       {showReport && result && (
@@ -427,8 +588,8 @@ export default function ImageDetection() {
 
             <div className="modal-body">
               <div className="report-verdict-banner" style={{
-                background: isReal ? 'rgba(16, 185, 129, 0.08)' : isFake ? 'rgba(239, 68, 68, 0.08)' : 'rgba(245, 158, 11, 0.08)',
-                border: `1px solid ${isReal ? 'var(--success)' : isFake ? 'var(--danger)' : 'var(--warning)'}`,
+                background: isReal ? 'rgba(16, 185, 129, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+                border: `1px solid ${isReal ? 'var(--success)' : 'var(--danger)'}`,
                 padding: '1.25rem',
                 borderRadius: '8px',
                 marginBottom: '1.5rem',
@@ -438,7 +599,7 @@ export default function ImageDetection() {
               }}>
                 <div>
                   <span style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>
-                    Multimodal Classification Verdict
+                    Primary Determination
                   </span>
                   <div style={{ fontSize: '1.6rem', fontWeight: 800, color: isReal ? 'var(--success)' : 'var(--danger)' }}>
                     {verdict}
@@ -461,14 +622,8 @@ export default function ImageDetection() {
                       <td><strong>{result.filename || file?.name}</strong></td>
                     </tr>
                     <tr>
-                      <td>Classification Model</td>
-                      <td>
-                        <strong>{isFusion ? 'Multimodal Fusion MLP (CNN + FFT + DWT)' : 'ResNet18 CNN Baseline'}</strong>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>Feature Vector Dimension</td>
-                      <td>{result.feature_dims?.total || 610} Dimensions (CNN: 512, FFT: 70, DWT: 28)</td>
+                      <td>Spatial Model</td>
+                      <td>ResNet18 (PyTorch)</td>
                     </tr>
                     <tr>
                       <td>Inspection Date &amp; Time</td>
@@ -476,7 +631,11 @@ export default function ImageDetection() {
                     </tr>
                     <tr>
                       <td>Record ID</td>
-                      <td><code>{result.history_id || 'LOCAL-SCAN'}</code></td>
+                      <td><code>{result.history_id || 'SESSION-RECORD'}</code></td>
+                    </tr>
+                    <tr>
+                      <td>Salient Region</td>
+                      <td>{spatial?.salient_regions || 'Facial contours'}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -515,16 +674,14 @@ export default function ImageDetection() {
                 </table>
               </div>
 
-              <div className="report-section">
-                <h4>Forensic Findings &amp; Summary</h4>
-                <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                  {isReal
-                    ? 'The multimodal fusion classifier analyzed spatial landmarks, 2D Fourier frequency distribution, and discrete wavelet sub-band coefficients. All branches showed natural smooth skin gradients, natural spectral roll-off, and low detail energy ratios typical of authentic photography.'
-                    : isFake
-                    ? 'The multimodal fusion classifier detected corroborating forensic anomalies across multiple domains: high-frequency spectral artifacts, anomalous wavelet sub-band energy concentrations, and spatial blending irregularities characteristic of deepfake generation.'
-                    : 'The analysis yielded borderline confidence values. Recommended next step: run Frequency Analysis for detailed spectral visualization.'}
-                </p>
-              </div>
+              {summary && (
+                <div className="report-section">
+                  <h4>Holistic Analytical Summary</h4>
+                  <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                    {summary}
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="modal-footer">

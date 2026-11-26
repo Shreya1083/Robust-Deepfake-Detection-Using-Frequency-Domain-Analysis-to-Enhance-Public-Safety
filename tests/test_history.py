@@ -109,7 +109,13 @@ class MockHistoryCollection:
         for doc in self.docs:
             m = True
             for k, v in query.items():
-                if k == "created_at" and isinstance(v, dict) and "$gte" in v:
+                if k == "filename" and isinstance(v, dict) and "$regex" in v:
+                    import re
+                    pattern = re.compile(v["$regex"], re.IGNORECASE)
+                    if not pattern.search(doc.get("filename", "")):
+                        m = False
+                        break
+                elif k == "created_at" and isinstance(v, dict) and "$gte" in v:
                     doc_date = str(doc.get("created_at", ""))
                     if not doc_date or doc_date < str(v["$gte"]):
                         m = False
@@ -128,7 +134,7 @@ class MockHistoryCollection:
             for k, v in query.items():
                 if k == "_id":
                     if str(doc.get("_id")) != str(v):
-                        match = False
+                        m = False
                         break
                 elif doc.get(k) != v:
                     m = False

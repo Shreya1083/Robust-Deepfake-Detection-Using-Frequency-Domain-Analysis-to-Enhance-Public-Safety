@@ -39,19 +39,22 @@ async def list_history(
 
     query = {"user_id": current_user["id"]}
 
-    if search and search.strip():
+    if isinstance(search, str) and search.strip():
         # Case-insensitive substring match on filename
         query["filename"] = {"$regex": search.strip(), "$options": "i"}
 
-    if media_type and media_type.lower() in ("image", "video"):
+    if isinstance(media_type, str) and media_type.lower() in ("image", "video"):
         query["media_type"] = media_type.lower()
 
-    if prediction and prediction.upper() in ("REAL", "DEEPFAKE"):
+    if isinstance(prediction, str) and prediction.upper() in ("REAL", "DEEPFAKE"):
         query["prediction"] = prediction.upper()
+
+    skip_val = int(skip) if isinstance(skip, (int, str)) and str(skip).isdigit() else 0
+    limit_val = int(limit) if isinstance(limit, (int, str)) and str(limit).isdigit() else 20
 
     total = await collection.count_documents(query)
 
-    cursor = collection.find(query).sort("created_at", -1).skip(skip).limit(limit)
+    cursor = collection.find(query).sort("created_at", -1).skip(skip_val).limit(limit_val)
     items = []
     async for doc in cursor:
         items.append(

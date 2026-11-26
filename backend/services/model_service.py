@@ -50,6 +50,12 @@ class ModelService:
     def model_type(self) -> str:
         return getattr(self._detector, "model_type", "unknown")
 
+    def reload_model(self) -> None:
+        """Reload SpatialDetector instance to pick up new checkpoints."""
+        logger.info("Reloading SpatialDetector in ModelService...")
+        self._detector = SpatialDetector()
+        logger.info("ModelService reloaded: ready=%s, type=%s", self._detector.is_ready, self._detector.model_type)
+
     def predict_image(self, image_input) -> dict:
         return self._detector.predict_image(image_input)
 

@@ -1,18 +1,12 @@
 """
-Unified Deepfake Detector Module (Spatial CNN + Multimodal Fusion)
-==================================================================
-Inference engine that loads either:
-1. Trained Multimodal Fusion Model (fusion_best.pth) combining CNN (512),
-   FFT (70), and DWT (28) features into a unified 610-dim MLP classifier.
-2. Baseline Spatial ResNet18 (resnet18_best.pth) as fallback.
-
-Key Features:
-- Automatic face detection and padded cropping via FaceExtractor.
-- Exact training preprocessing (224x224, ImageNet normalization).
-- Deterministic extraction: CNN embedding (512), FFT spectrum (70), DWT sub-bands (28).
-- Branch-level z-score normalization using saved training statistics.
-- Valid class probabilities (summing to 1.0) and confidence scoring.
-- Comprehensive response schema supporting both single-domain and multimodal inspection.
+Unified Deepfake Detector Module (Spatial CNN + Grad-CAM + FFT + DWT)
+=====================================================================
+Modular deepfake detection engine featuring:
+1. Spatial ResNet18 CNN inference with calibrated probabilities.
+2. Actual Grad-CAM spatial activation heatmaps & overlays from layer4.
+3. 2D Fast Fourier Transform (FFT) magnitude spectrum and radial profile.
+4. Discrete Wavelet Transform (DWT) 2D Haar multi-scale sub-band analysis.
+5. Unified analytical summary synthesizing all domain findings.
 """
 
 import logging
@@ -28,174 +22,103 @@ from models.spatial_model import SpatialResNet18, get_default_device
 from src.config import CHECKPOINTS_DIR, CLASS_LABELS
 from src.dataset_loader import get_spatial_transforms
 from src.face_extraction import FaceExtractor
-from src.feature_fusion import (
-    CNN_FEATURE_DIM,
-    DWT_FEATURE_DIM,
-    FFT_FEATURE_DIM,
-    FUSION_FEATURE_DIM,
-    FeatureNormalizer,
-    MultimodalFeatureExtractor,
-    MultimodalFusionClassifier,
-)
+from src.frequency import run_fft_analysis
+from src.gradcam import GradCAM
+from src.wavelet import run_dwt_analysis
 
 logger = logging.getLogger(__name__)
 
 
 class SpatialDetector:
     """
-    Unified deepfake detector that prioritizes the trained Multimodal Fusion Model
-    (CNN + FFT + DWT) when available, while preserving seamless fallback to
-    the CNN-only baseline.
+    Forensic deepfake detector combining ResNet18 spatial analysis with
+    Grad-CAM heatmaps, 2D FFT spectral decomposition, and 2D DWT wavelets.
     """
 
     def __init__(
         self,
         checkpoint_path: Optional[Union[str, Path]] = None,
-        fusion_checkpoint_path: Optional[Union[str, Path]] = None,
         device: Optional[torch.device] = None,
     ):
         self.device = device or get_default_device()
+        self.checkpoint_path = Path(checkpoint_path or (CHECKPOINTS_DIR / "resnet18_best.pth"))
 
-        # Checkpoint paths
-        self.fusion_checkpoint_path = Path(
-            fusion_checkpoint_path or (CHECKPOINTS_DIR / "fusion_best.pth")
-        )
-        self.cnn_checkpoint_path = Path(
-            checkpoint_path or (CHECKPOINTS_DIR / "resnet18_best.pth")
-        )
-
-        # Primary checkpoint pointer for backward-compatibility
-        self.checkpoint_path = (
-            self.fusion_checkpoint_path
-            if self.fusion_checkpoint_path.exists()
-            else self.cnn_checkpoint_path
-        )
-
-        # Models & preprocessors
         self.face_extractor = FaceExtractor()
         self.transform = get_spatial_transforms(is_train=False, input_size=(224, 224))
 
         self.model: Optional[SpatialResNet18] = None
-        self.fusion_model: Optional[MultimodalFusionClassifier] = None
-        self.normalizer: Optional[FeatureNormalizer] = None
-        self.feature_extractor: Optional[MultimodalFeatureExtractor] = None
-
+        self.gradcam: Optional[GradCAM] = None
         self.checkpoint_meta: Optional[Dict] = None
-        self.model_type: str = "none"
+        self.model_type: str = "spatial_resnet18"
         self.is_ready: bool = False
-        self.is_fusion: bool = False
 
-        self._load_models()
+        self._load_model()
 
-    def _load_models(self) -> bool:
-        """Attempt to load models with priority on Multimodal Fusion."""
-        # 1. First, always load or initialize the spatial CNN model (used by feature extractor or baseline)
-        if self.cnn_checkpoint_path.exists():
+    def _load_model(self) -> bool:
+        """Load trained ResNet18 weights if available; fallback to ImageNet pretrained."""
+        if self.checkpoint_path.exists():
             try:
-                cnn_ckpt = torch.load(self.cnn_checkpoint_path, map_location=self.device)
+                ckpt = torch.load(self.checkpoint_path, map_location=self.device)
                 self.model = SpatialResNet18(
                     pretrained=False,
-                    num_classes=cnn_ckpt.get("num_classes", 2),
+                    num_classes=ckpt.get("num_classes", 2),
                 )
-                self.model.load_state_dict(cnn_ckpt["model_state_dict"])
+                self.model.load_state_dict(ckpt["model_state_dict"])
                 self.model.to(self.device)
                 self.model.eval()
-                self.checkpoint_meta = cnn_ckpt
-                self.model_type = "spatial_resnet18"
+                self.checkpoint_meta = ckpt
+                self.model_type = "spatial_resnet18_trained"
                 self.is_ready = True
-                logger.info("Loaded baseline CNN checkpoint from: %s", self.cnn_checkpoint_path)
+                logger.info("Loaded trained CNN checkpoint from: %s", self.checkpoint_path)
             except Exception as e:
-                logger.warning("Could not load CNN checkpoint %s: %s", self.cnn_checkpoint_path, e)
+                logger.warning("Could not load checkpoint %s: %s. Using pretrained backbone.", self.checkpoint_path, e)
                 self.model = SpatialResNet18(pretrained=True).to(self.device)
                 self.model.eval()
+                self.model_type = "spatial_resnet18_pretrained"
+                self.is_ready = True
         else:
             try:
                 self.model = SpatialResNet18(pretrained=True).to(self.device)
                 self.model.eval()
+                self.model_type = "spatial_resnet18_pretrained"
+                self.is_ready = True
+                logger.info("No checkpoint at %s; running with pretrained ResNet18 backbone.", self.checkpoint_path)
             except Exception:
                 self.model = SpatialResNet18(pretrained=False).to(self.device)
                 self.model.eval()
-
-        # Initialize multimodal feature extractor with CNN model
-        self.feature_extractor = MultimodalFeatureExtractor(
-            cnn_model=self.model,
-            device=self.device,
-        )
-
-        # 2. Check if Multimodal Fusion checkpoint exists
-        if self.fusion_checkpoint_path.exists():
-            try:
-                fusion_ckpt = torch.load(self.fusion_checkpoint_path, map_location=self.device)
-                self.fusion_model = MultimodalFusionClassifier(
-                    input_dim=fusion_ckpt.get("input_dim", FUSION_FEATURE_DIM),
-                    hidden_dim1=256,
-                    hidden_dim2=64,
-                    num_classes=2,
-                )
-                self.fusion_model.load_state_dict(fusion_ckpt["model_state_dict"])
-                self.fusion_model.to(self.device)
-                self.fusion_model.eval()
-
-                # Load normalizer
-                norm_dict = fusion_ckpt.get("normalization")
-                if norm_dict is not None:
-                    self.normalizer = FeatureNormalizer.from_dict(norm_dict)
-                else:
-                    norm_file = self.fusion_checkpoint_path.parent / "fusion_normalization.json"
-                    if norm_file.exists():
-                        self.normalizer = FeatureNormalizer.load(norm_file)
-
-                self.checkpoint_meta = fusion_ckpt
-                self.checkpoint_path = self.fusion_checkpoint_path
-                self.model_type = "multimodal_fusion"
-                self.is_fusion = True
+                self.model_type = "spatial_resnet18_baseline"
                 self.is_ready = True
-                logger.info("Successfully loaded Multimodal Fusion model from: %s", self.fusion_checkpoint_path)
-                return True
-            except Exception as e:
-                logger.error("Failed to load fusion checkpoint %s: %s", self.fusion_checkpoint_path, e)
 
-        # If fusion model is not loaded, verify baseline CNN is ready
-        if self.model is not None and self.cnn_checkpoint_path.exists():
-            self.model_type = "spatial_resnet18"
-            self.is_fusion = False
-            self.is_ready = True
-            return True
+        # Initialize Grad-CAM on layer4
+        try:
+            self.gradcam = GradCAM(self.model)
+            logger.info("Initialized Grad-CAM on target layer: %s", self.gradcam.target_layer)
+        except Exception as e:
+            logger.error("Failed to initialize Grad-CAM: %s", e)
+            self.gradcam = None
 
-        if self.model is not None:
-            # Baseline evaluation mode without trained weights
-            self.model_type = "spatial_resnet18_untrained"
-            self.is_ready = True
-            return True
-
-        self.is_ready = False
-        return False
+        return self.is_ready
 
     def predict_image(
         self,
         image_input: Union[str, Path, np.ndarray, Image.Image],
     ) -> Dict:
         """
-        Run deepfake inference on an uploaded image.
-        Uses Multimodal Fusion (CNN + FFT + DWT) if available, with CNN baseline comparison.
-
-        Parameters
-        ----------
-        image_input : file path, numpy array (BGR or RGB), or PIL Image.
-
-        Returns
-        -------
-        Dict with complete forensic results.
+        Run deepfake inference on an uploaded image, generating:
+        - REAL vs DEEPFAKE verdict & calibrated class probabilities
+        - Spatial Grad-CAM heatmap, overlay & salient region description
+        - FFT frequency spectrum, multi-band energy & radial profile
+        - DWT wavelet sub-bands & multi-scale detail ratios
+        - Dynamic holistic analysis summary
         """
-        if not self.is_ready:
+        if not self.is_ready or self.model is None:
             return {
                 "is_ready": False,
-                "error": f"Model checkpoints not found at {self.fusion_checkpoint_path} or {self.cnn_checkpoint_path}. Please train the model first.",
+                "error": "CNN model is not initialized.",
             }
 
         # 1. Standardize input to numpy BGR array
         np_frame: Optional[np.ndarray] = None
-
         if isinstance(image_input, (str, Path)):
             path = Path(image_input)
             if not path.exists():
@@ -229,118 +152,204 @@ class SpatialDetector:
             face_rgb = cv2.cvtColor(np_frame, cv2.COLOR_BGR2RGB)
             pil_image = Image.fromarray(face_rgb)
 
-        # Compute CNN baseline prediction
+        # 3. Spatial CNN Forward Pass
         tensor = self.transform(pil_image).unsqueeze(0).to(self.device)
         with torch.no_grad():
             cnn_logits = self.model(tensor)
             cnn_probs = torch.softmax(cnn_logits, dim=1).squeeze(0).cpu().numpy()
 
-        cnn_real = float(cnn_probs[0])
-        cnn_fake = float(cnn_probs[1])
-        cnn_pred_label = int(np.argmax(cnn_probs))
-        cnn_pred = CLASS_LABELS.get(cnn_pred_label, "UNKNOWN")
-        cnn_conf = float(cnn_probs[cnn_pred_label])
+        real_prob = float(cnn_probs[0])
+        deepfake_prob = float(cnn_probs[1])
 
-        baseline_cnn = {
-            "prediction": cnn_pred,
-            "label": cnn_pred_label,
-            "confidence": round(cnn_conf, 4),
-            "real_prob": round(cnn_real, 4),
-            "deepfake_prob": round(cnn_fake, 4),
+        # Use calibrated optimal threshold from validation set if available
+        threshold = 0.50
+        if self.checkpoint_meta and isinstance(self.checkpoint_meta, dict):
+            threshold = float(self.checkpoint_meta.get("optimal_threshold", 0.50))
+
+        if deepfake_prob >= threshold:
+            pred_label = 1
+            prediction = CLASS_LABELS.get(1, "DEEPFAKE")
+            confidence = deepfake_prob
+        else:
+            pred_label = 0
+            prediction = CLASS_LABELS.get(0, "REAL")
+            confidence = real_prob
+
+        # 4. Spatial Grad-CAM Generation
+        spatial_analysis = {
+            "status": "inactive",
+            "architecture": "ResNet18",
+            "target_layer": "layer4",
+            "salient_regions": "N/A",
+            "heatmap_b64": None,
+            "overlay_b64": None,
+            "explanation": "The CNN spatial analysis highlights facial regions that contributed most to the classification.",
         }
 
-        # 3. Multimodal Fusion Inference if model & normalizer available
-        if self.is_fusion and self.fusion_model is not None and self.normalizer is not None:
+        if self.gradcam is not None:
             try:
-                # Extract all 3 feature representations
-                features = self.feature_extractor.extract_all(pil_image)
-                cnn_feat = features["cnn"]
-                fft_feat = features["fft"]
-                dwt_feat = features["dwt"]
-
-                # Apply training-set normalization
-                _, _, _, fused_vector = self.normalizer.transform(cnn_feat, fft_feat, dwt_feat)
-                fused_tensor = torch.from_numpy(fused_vector).unsqueeze(0).float().to(self.device)
-
-                # Forward pass through fusion classifier MLP
-                with torch.no_grad():
-                    fusion_logits = self.fusion_model(fused_tensor)
-                    fusion_probs = torch.softmax(fusion_logits, dim=1).squeeze(0).cpu().numpy()
-
-                real_prob = float(fusion_probs[0])
-                deepfake_prob = float(fusion_probs[1])
-                label = int(np.argmax(fusion_probs))
-                prediction = CLASS_LABELS.get(label, "UNKNOWN")
-                confidence = float(fusion_probs[label])
-
-                return {
-                    "is_ready": True,
-                    "model_type": "multimodal_fusion",
-                    "is_fusion": True,
-                    "prediction": prediction,
-                    "label": label,
-                    "confidence": round(confidence, 4),
-                    "real_prob": round(real_prob, 4),
-                    "deepfake_prob": round(deepfake_prob, 4),
-                    "face_detected": face_detected,
-                    "cropped_face": face_rgb if face_detected else None,
-                    "feature_dims": {
-                        "cnn": CNN_FEATURE_DIM,
-                        "fft": FFT_FEATURE_DIM,
-                        "dwt": DWT_FEATURE_DIM,
-                        "total": FUSION_FEATURE_DIM,
-                    },
-                    "multimodal_branches": {
-                        "cnn": {
-                            "status": "active",
-                            "name": "CNN Spatial Features",
-                            "dim": CNN_FEATURE_DIM,
-                            "desc": "ResNet18 penultimate average pooling embedding",
-                        },
-                        "fft": {
-                            "status": "active",
-                            "name": "FFT Frequency Features",
-                            "dim": FFT_FEATURE_DIM,
-                            "desc": "Spectral summary statistics + 64 radial frequency bins",
-                        },
-                        "dwt": {
-                            "status": "active",
-                            "name": "DWT Wavelet Features",
-                            "dim": DWT_FEATURE_DIM,
-                            "desc": "Haar wavelet sub-bands (LL, LH, HL, HH) & energy ratios",
-                        },
-                    },
-                    "baseline_cnn": baseline_cnn,
-                    "device": str(self.device),
-                    "error": None,
+                # Re-compute with gradient tracking enabled
+                cam_tensor = self.transform(pil_image).unsqueeze(0).to(self.device)
+                gradcam_out = self.gradcam.generate(
+                    input_tensor=cam_tensor,
+                    target_class=pred_label,
+                    original_image_rgb=face_rgb,
+                )
+                spatial_analysis = {
+                    "status": "active",
+                    "architecture": "ResNet18",
+                    "target_layer": gradcam_out["target_layer_name"],
+                    "salient_regions": gradcam_out["salient_regions"],
+                    "heatmap_b64": gradcam_out["heatmap_b64"],
+                    "overlay_b64": gradcam_out["overlay_b64"],
+                    "explanation": (
+                        "The CNN spatial analysis highlights facial regions that contributed most to the classification. "
+                        f"Primary model activations are localized on the {gradcam_out['salient_regions'].lower()}."
+                    ),
                 }
             except Exception as e:
-                logger.error("Error during multimodal fusion inference: %s, falling back to CNN", e)
+                logger.error("Error computing Grad-CAM: %s", e)
+                spatial_analysis["error"] = str(e)
 
-        # Fallback to CNN spatial prediction
+        # 5. FFT Frequency Domain Analysis
+        fft_analysis = {
+            "status": "inactive",
+            "magnitude_b64": None,
+            "log_spectrum_b64": None,
+            "metrics": None,
+            "explanation": None,
+        }
+        try:
+            fft_res = run_fft_analysis(pil_image, generate_visuals=True)
+            if fft_res.success and fft_res.features:
+                fft_analysis = {
+                    "status": "active",
+                    "magnitude_b64": fft_res.magnitude_b64,
+                    "log_spectrum_b64": fft_res.log_spectrum_b64,
+                    "metrics": fft_res.features.to_dict(),
+                    "radial_profile": fft_res.features.radial_spectrum,
+                    "explanation": fft_res.explanation,
+                }
+        except Exception as e:
+            logger.error("Error during FFT analysis: %s", e)
+            fft_analysis["error"] = str(e)
+
+        # 6. DWT Discrete Wavelet Analysis
+        dwt_analysis = {
+            "status": "inactive",
+            "subbands_b64": None,
+            "combined_b64": None,
+            "ll_b64": None,
+            "lh_b64": None,
+            "hl_b64": None,
+            "hh_b64": None,
+            "features": None,
+            "wavelet_type": "haar",
+            "explanation": None,
+        }
+        try:
+            dwt_res = run_dwt_analysis(pil_image, generate_visuals=True)
+            if dwt_res.success and dwt_res.features:
+                dwt_feat = dwt_res.features
+                dwt_explanation = (
+                    f"2D Haar Wavelet decomposition isolates approximation (LL: {dwt_feat.ll.energy_ratio*100:.1f}%) "
+                    f"and high-frequency directional subbands (LH: {dwt_feat.lh.energy_ratio*100:.2f}%, "
+                    f"HL: {dwt_feat.hl.energy_ratio*100:.2f}%, HH: {dwt_feat.hh.energy_ratio*100:.2f}%). "
+                    f"Detail-to-approximation ratio: {dwt_feat.detail_to_approx_ratio:.4f}."
+                )
+                dwt_analysis = {
+                    "status": "active",
+                    "subbands_b64": dwt_res.combined_b64,
+                    "combined_b64": dwt_res.combined_b64,
+                    "ll_b64": dwt_res.ll_b64,
+                    "lh_b64": dwt_res.lh_b64,
+                    "hl_b64": dwt_res.hl_b64,
+                    "hh_b64": dwt_res.hh_b64,
+                    "features": dwt_feat.to_dict(),
+                    "wavelet_type": "haar",
+                    "explanation": dwt_explanation,
+                }
+        except Exception as e:
+            logger.error("Error during DWT analysis: %s", e)
+            dwt_analysis["error"] = str(e)
+
+        # 7. Holistic Combined Analysis Summary
+        analysis_summary = self._generate_analysis_summary(
+            prediction=prediction,
+            confidence=confidence,
+            spatial_analysis=spatial_analysis,
+            fft_analysis=fft_analysis,
+            dwt_analysis=dwt_analysis,
+        )
+
         return {
             "is_ready": True,
             "model_type": self.model_type,
             "is_fusion": False,
-            "prediction": cnn_pred,
-            "label": cnn_pred_label,
-            "confidence": round(cnn_conf, 4),
-            "real_prob": round(cnn_real, 4),
-            "deepfake_prob": round(cnn_fake, 4),
+            "prediction": prediction,
+            "label": pred_label,
+            "confidence": round(confidence, 4),
+            "real_prob": round(real_prob, 4),
+            "deepfake_prob": round(deepfake_prob, 4),
             "face_detected": face_detected,
             "cropped_face": face_rgb if face_detected else None,
-            "feature_dims": {"cnn": CNN_FEATURE_DIM, "total": CNN_FEATURE_DIM},
-            "multimodal_branches": {
-                "cnn": {
-                    "status": "active",
-                    "name": "CNN Spatial Features",
-                    "dim": CNN_FEATURE_DIM,
-                    "desc": "ResNet18 penultimate average pooling embedding",
-                },
-                "fft": {"status": "inactive", "name": "FFT Frequency Features", "dim": 0},
-                "dwt": {"status": "inactive", "name": "DWT Wavelet Features", "dim": 0},
-            },
-            "baseline_cnn": baseline_cnn,
+            "spatial_analysis": spatial_analysis,
+            "frequency_analysis": fft_analysis,
+            "dwt_analysis": dwt_analysis,
+            "analysis_summary": analysis_summary,
             "device": str(self.device),
             "error": None,
         }
+
+    @staticmethod
+    def _generate_analysis_summary(
+        prediction: str,
+        confidence: float,
+        spatial_analysis: Dict,
+        fft_analysis: Dict,
+        dwt_analysis: Dict,
+    ) -> str:
+        """Create a cohesive, scientifically grounded combined analysis summary."""
+        parts = []
+
+        # Model determination
+        conf_pct = confidence * 100
+        parts.append(f"Model Determination: Classified as {prediction} with {conf_pct:.1f}% confidence.")
+
+        # Spatial findings
+        if spatial_analysis.get("status") == "active":
+            salient = spatial_analysis.get("salient_regions", "facial contours")
+            parts.append(
+                f"Spatial Analysis (ResNet18): Feature attribution concentrated predominantly on the {salient.lower()}, "
+                "identifying visual boundaries and textural gradients that influenced the classification."
+            )
+
+        # FFT findings
+        fft_metrics = fft_analysis.get("metrics")
+        if fft_metrics:
+            high_e_pct = fft_metrics.get("high_energy_pct", 0.0)
+            low_e_pct = fft_metrics.get("low_energy_pct", 0.0)
+            parts.append(
+                f"FFT Spectral Analysis: Exhibits {low_e_pct:.1f}% structural low-frequency energy and "
+                f"{high_e_pct:.2f}% high-frequency components."
+            )
+
+        # DWT findings
+        dwt_features = dwt_analysis.get("features")
+        if dwt_features:
+            hh_ratio = dwt_features.get("hh", {}).get("energy_ratio", 0.0) * 100
+            parts.append(
+                f"DWT Wavelet Decomposition: Diagonal detail subband (HH) contains {hh_ratio:.2f}% of total wavelet energy."
+            )
+
+        # Forensic conclusion
+        if prediction == "DEEPFAKE":
+            parts.append(
+                "Conclusion: Elevated spatial saliency and localized frequency/wavelet cues are consistent with digital face manipulation artifacts."
+            )
+        else:
+            parts.append(
+                "Conclusion: Coherent spatial texture gradients and smooth spectral falloff are consistent with authentic photographic imagery."
+            )
+
+        return " ".join(parts)
